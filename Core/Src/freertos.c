@@ -25,7 +25,10 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include "../../pm2.5/sps30.h"
+#include "../../gps/gps.h"
+#include "fatfs.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,7 +48,24 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN Variables */
+typedef struct IP_TASK_COMMANDS
+{
+	uint8_t from_Task; /*0 - GPS; 1 - PM; 2 - CO; 3 - SO */
+	void *pvData; /* Holds or points to any data associated with the event. */
 
+} xIPStackEvent_t;
+
+typedef struct DATA
+{
+	GPS_t GPS_Data;
+	//SO_t SO_Data;
+	struct sps30_measurement PM_Data;
+	//CO_t CO_Data;
+} CollatedData;
+
+QueueHandle_t xQueueCollate;
+QueueHandle_t xQueueSD;
+//QueueHandle_t xQueueLoRa;
 /* USER CODE END Variables */
 osThreadId PMHandle;
 osThreadId GPSHandle;
@@ -104,6 +124,9 @@ void MX_FREERTOS_Init(void) {
 
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
+	xQueueCollate = xQueueCreate( 4, sizeof( xIPStackEvent_t ) );
+	xQueueSD = xQueueCreate( 10, sizeof( CollatedData ) );
+	//xQueueLORA = xQueueCreate( 10, sizeof( CollatedData ) );
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -139,11 +162,69 @@ void MX_FREERTOS_Init(void) {
 void PM_Task(void const * argument)
 {
   /* USER CODE BEGIN PM_Task */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+	struct sps30_measurement m;
+	int16_t ret;
+
+	void* pointer = &m;
+	xIPStackEvent_t toQueue = { 1, pointer };
+
+
+	/* Busy loop for initialization, because the main loop does not work without
+	 * a sensor.
+	 */
+	while (sps30_probe() != 0) {
+		printf("SPS sensor probing failed\n");
+		sensirion_sleep_usec(1000000); /* wait 1s */
+	}
+	printf("SPS sensor probing successful\n");
+
+	uint8_t fw_major;
+	uint8_t fw_minor;
+	ret = sps30_read_firmware_version(&fw_major, &fw_minor);
+	if (ret) {
+		printf("error reading firmware version\n");
+	} else {
+		printf("FW: %u.%u\n", fw_major, fw_minor);
+	}
+
+	char serial_number[SPS30_MAX_SERIAL_LEN];
+	ret = sps30_get_serial(serial_number);
+	if (ret) {
+		printf("error reading serial number\n");
+	} else {
+		printf("Serial Number: %s\n", serial_number);
+	}
+
+	ret = sps30_start_measurement();
+	if (ret < 0)
+		printf("error starting measurement\n");
+	printf("measurements started\n");
+	sensirion_sleep_usec(SPS30_MEASUREMENT_DURATION_USEC); /* wait 1s */
+
+	for(;;)
+	{
+		ret = sps30_read_measurement(&m);
+		if (ret < 0) {
+			printf("error reading measurement\n");
+
+		} else {
+			printf("measured values:\n"
+					"\t%0.2f pm1.0\n"
+					"\t%0.2f pm2.5\n"
+					"\t%0.2f pm4.0\n"
+					"\t%0.2f pm10.0\n"
+					"\t%0.2f nc0.5\n"
+					"\t%0.2f nc1.0\n"
+					"\t%0.2f nc2.5\n"
+					"\t%0.2f nc4.5\n"
+					"\t%0.2f nc10.0\n"
+					"\t%0.2f typical particle size\n\n",
+					m.mc_1p0, m.mc_2p5, m.mc_4p0, m.mc_10p0, m.nc_0p5, m.nc_1p0,
+					m.nc_2p5, m.nc_4p0, m.nc_10p0, m.typical_particle_size);
+			xQueueSend( xQueueCollate, ( void* ) &toQueue, ( TickType_t ) 10);
+			vTaskSuspend( NULL );
+		}
+	}
   /* USER CODE END PM_Task */
 }
 
@@ -157,11 +238,37 @@ void PM_Task(void const * argument)
 void GPS_Task(void const * argument)
 {
   /* USER CODE BEGIN GPS_Task */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+
+	/* USER CODE BEGIN GPS_Task */
+	void* pointer = &GPS;
+	xIPStackEvent_t toQueue = { 0, pointer };
+	const TickType_t xMaxBlockTime = pdMS_TO_TICKS( 200 );
+	GPS_Init();
+	ulTaskNotifyTake( pdTRUE,
+			xMaxBlockTime );
+	/* Infinite loop */
+	for(;;)
+	{
+		if (rx_data != '\n' && rx_index < sizeof(rx_buffer)) {
+			rx_buffer[rx_index++] = rx_data;
+			GPS_Init();
+			ulTaskNotifyTake( pdTRUE,
+					xMaxBlockTime );
+		} else {
+			GPS_print((char*)rx_buffer);
+			if(GPS_validate((char*) rx_buffer))
+			{
+				GPS_parse((char*) rx_buffer);
+				xQueueSend( xQueueCollate, ( void* ) &toQueue, ( TickType_t ) 10);
+				vTaskSuspend( NULL );
+			}
+			rx_index = 0;
+			memset(rx_buffer, 0, sizeof(rx_buffer));
+			GPS_Init();
+			ulTaskNotifyTake( pdTRUE,
+					xMaxBlockTime );
+		}
+	}
   /* USER CODE END GPS_Task */
 }
 
@@ -175,11 +282,42 @@ void GPS_Task(void const * argument)
 void COLLATE_Task(void const * argument)
 {
   /* USER CODE BEGIN COLLATE_Task */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+	uint8_t counter = 0;
+	CollatedData collatedData;
+	xIPStackEvent_t xReceivedEvent;
+
+	/* Infinite loop */
+	for(;;)
+	{
+		xQueueReceive( xQueueCollate, &xReceivedEvent, portMAX_DELAY );
+		switch( xReceivedEvent.from_Task )
+		{
+		case 0:
+			collatedData.GPS_Data = *(GPS_t*)xReceivedEvent.pvData;
+			break;
+		case 1:
+			collatedData.PM_Data = *(struct sps30_measurement*)xReceivedEvent.pvData;
+			break;
+		/*case 2:
+			collatedData.CO_Data = *(CO_t*)xReceivedEvent.pvData;
+			break;
+		case 3:
+			collatedData.SO_Data = *(SO_t*)xReceivedEvent.pvData;
+			break;*/
+		}
+		counter++;
+		if (counter == 4)
+		{
+			xQueueSend( xQueueSD, ( void* ) &collatedData, ( TickType_t ) 10);
+			//xQueueSend( xQueueLORA, ( void* ) &collatedData, ( TickType_t ) 10);
+			counter = 0;
+			osDelay(2000);
+			vTaskResume( PMHandle );
+			//vTaskResume( COHandle );
+			vTaskResume( GPSHandle );
+			//vTaskResume( SOHandle );
+		}
+	}
   /* USER CODE END COLLATE_Task */
 }
 
@@ -193,15 +331,53 @@ void COLLATE_Task(void const * argument)
 void SD_Task(void const * argument)
 {
   /* USER CODE BEGIN SD_Task */
-  /* Infinite loop */
-  for(;;)
-  {
-    osDelay(1);
-  }
+	CollatedData xReceivedEvent;
+
+	FATFS       FatFs;                //FatFs handle
+	FIL         fil;                  //File handle
+	FRESULT     fres;                 //Result after operations
+
+	fres = f_mount(&FatFs, "", 1);    //1=mount now
+	if (fres != FR_OK)
+	{
+		printf("No SD Card found : (%i)\r\n", fres);
+		vTaskSuspend( NULL );
+	}
+	printf("SD Card Mounted Successfully!!!\r\n");
+	FATFS *pfs;
+	DWORD fre_clust;
+	uint32_t totalSpace, freeSpace;
+
+	f_getfree("", &fre_clust, &pfs);
+	totalSpace = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
+	freeSpace = (uint32_t)(fre_clust * pfs->csize * 0.5);
+
+	printf("TotalSpace : %lu bytes, FreeSpace = %lu bytes\n", totalSpace, freeSpace);
+	fres = f_open(&fil, "data.bin", FA_WRITE | FA_READ | FA_OPEN_APPEND);
+	if(fres != FR_OK)
+	{
+		printf("SD CARD OK");
+	}
+	/* Infinite loop */
+	for(;;)
+	{
+		xQueueReceive( xQueueSD, &xReceivedEvent, portMAX_DELAY );
+		void* vptr_test = &xReceivedEvent;
+		uint8_t buffer[sizeof(xReceivedEvent)];
+		memcpy(buffer, vptr_test, sizeof(xReceivedEvent));
+		f_write(&fil, buffer, sizeof(buffer), NULL);
+	}
   /* USER CODE END SD_Task */
 }
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
+void GPS_UART_CallBack()
+{
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	vTaskNotifyGiveFromISR( GPSHandle,
+			&xHigherPriorityTaskWoken );
+	portYIELD_FROM_ISR( xHigherPriorityTaskWoken );
+}
 
 /* USER CODE END Application */

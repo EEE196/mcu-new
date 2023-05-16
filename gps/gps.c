@@ -108,27 +108,3 @@ float GPS_nmea_to_dec(float deg_coord, char nsew) {
 	return decimal;
 }
 
-void GPS_UART_CallBack(){
-	if (rx_data != '\n' && rx_index < sizeof(rx_buffer)) {
-		rx_buffer[rx_index++] = rx_data;
-	} else {
-
-		if(GPS_validate((char*) rx_buffer))
-		{
-			GPS_parse((char*) rx_buffer);
-			printf("measured values:\n"
-					"\t%0.5f latitude"
-					"\t%c\n"
-					"\t%0.5f longitude"
-					"\t%c\n"
-					"\t%0.2f time\n"
-					"\t%d date\n",
-					GPS.nmea_latitude, GPS.ns, GPS.nmea_longitude, GPS.ew, GPS.utc_time, GPS.date
-			);
-		}
-
-		rx_index = 0;
-		memset(rx_buffer, 0, sizeof(rx_buffer));
-	}
-	HAL_UART_Receive_IT(GPS_USART, &rx_data, 1);
-}

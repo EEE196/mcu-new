@@ -120,5 +120,5 @@ void sensirion_sleep_usec(uint32_t useconds) {
         msec++;
     }
 
-    HAL_Delay(msec);
+    osDelay(msec);
 }
