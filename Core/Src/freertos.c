@@ -174,7 +174,7 @@ void PM_Task(void const * argument)
 	 */
 	while (sps30_probe() != 0) {
 		printf("SPS sensor probing failed\n");
-		sensirion_sleep_usec(1000000); /* wait 1s */
+		osDelay(1000000); /* wait 1s */
 	}
 	printf("SPS sensor probing successful\n");
 
