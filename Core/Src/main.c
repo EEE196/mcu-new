@@ -98,7 +98,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
   //test_sd();
   //test_pm();
-  test_gps();
+  //test_gps();
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in freertos.c) */
