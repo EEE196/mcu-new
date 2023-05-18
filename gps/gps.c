@@ -92,8 +92,17 @@ void GPS_parse(char *GPSstrParse){
 	if (!strncmp(GPSstrParse, "$GPRMC", 6)){
 		printf(GPSstrParse);
 		printf("\n");
-		if(sscanf(GPSstrParse, "$GPRMC,%f,%f,%c,%f,%c,%f,%f,%d", &GPS.utc_time, &GPS.nmea_latitude, &GPS.ns, &GPS.nmea_longitude, &GPS.ew, &GPS.speed_k, &GPS.course_d, &GPS.date) >= 1)
+		if(sscanf(GPSstrParse, "$GPRMC,%f,A,%f,%c,%f,%c,%f,,%d", &GPS.utc_time, &GPS.nmea_latitude, &GPS.ns, &GPS.nmea_longitude, &GPS.ew, &GPS.speed_k, &GPS.date) >= 1){
+			printf("measured values:\n"
+								"\t%0.5f %c latitude\n"
+								"\t%0.5f %c longitude\n"
+								"\t%0.2f time\n"
+								"\t%d date\n",
+								GPS.nmea_latitude, GPS.ns, GPS.nmea_longitude, GPS.ew, GPS.utc_time, GPS.date
+						);
 			return;
+
+		}
 	}
 }
 
@@ -116,15 +125,7 @@ void GPS_UART_CallBack(){
 		if(GPS_validate((char*) rx_buffer))
 		{
 			GPS_parse((char*) rx_buffer);
-			printf("measured values:\n"
-					"\t%0.5f latitude"
-					"\t%c\n"
-					"\t%0.5f longitude"
-					"\t%c\n"
-					"\t%0.2f time\n"
-					"\t%d date\n",
-					GPS.nmea_latitude, GPS.ns, GPS.nmea_longitude, GPS.ew, GPS.utc_time, GPS.date
-			);
+
 		}
 
 		rx_index = 0;
