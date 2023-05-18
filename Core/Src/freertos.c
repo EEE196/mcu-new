@@ -235,7 +235,6 @@ void GPS_Task(void const * argument)
 			rx_buffer[rx_index++] = rx_data;
 
 		} else {
-			GPS_print((char*)rx_buffer);
 			if(GPS_validate((char*) rx_buffer))
 			{
 				GPS_parse((char*) rx_buffer);
@@ -322,17 +321,16 @@ void SD_Task(void const * argument)
 	{
 		vTaskSuspend( NULL );
 	}
-
-	fres = f_open(&fil, "data.bin", FA_WRITE | FA_READ | FA_OPEN_APPEND);
-
 	/* Infinite loop */
 	for(;;)
 	{
 		xQueueReceive( xQueueSD, &xReceivedEvent, portMAX_DELAY );
+		fres = f_open(&fil, "data.bin", FA_WRITE | FA_READ | FA_OPEN_APPEND);
 		void* vptr_test = &xReceivedEvent;
 		uint8_t buffer[sizeof(xReceivedEvent)];
 		memcpy(buffer, vptr_test, sizeof(xReceivedEvent));
 		f_write(&fil, buffer, sizeof(buffer), NULL);
+		f_close(&fil);
 	}
   /* USER CODE END SD_Task */
 }
