@@ -87,6 +87,19 @@ void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 /* GetIdleTaskMemory prototype (linked to static allocation support) */
 void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
 
+/* Hook prototypes */
+void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName);
+
+/* USER CODE BEGIN 4 */
+__weak void vApplicationStackOverflowHook(xTaskHandle xTask, signed char *pcTaskName)
+{
+	printf("STACK OVERFLOW\n");
+   /* Run time stack overflow checking is performed if
+   configCHECK_FOR_STACK_OVERFLOW is defined to 1 or 2. This hook function is
+   called if a stack overflow is detected. */
+}
+/* USER CODE END 4 */
+
 /* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
 static StaticTask_t xIdleTaskTCBBuffer;
 static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
@@ -143,7 +156,7 @@ void MX_FREERTOS_Init(void) {
   COLLATEHandle = osThreadCreate(osThread(COLLATE), NULL);
 
   /* definition and creation of SD */
-  osThreadDef(SD, SD_Task, osPriorityNormal, 0, 1028);
+  osThreadDef(SD, SD_Task, osPriorityNormal, 0, 2056);
   SDHandle = osThreadCreate(osThread(SD), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
@@ -173,54 +186,23 @@ void PM_Task(void const * argument)
 	 * a sensor.
 	 */
 	while (sps30_probe() != 0) {
-		printf("SPS sensor probing failed\n");
 		osDelay(1000000); /* wait 1s */
 	}
-	printf("SPS sensor probing successful\n");
 
-	uint8_t fw_major;
-	uint8_t fw_minor;
-	ret = sps30_read_firmware_version(&fw_major, &fw_minor);
-	if (ret) {
-		printf("error reading firmware version\n");
-	} else {
-		printf("FW: %u.%u\n", fw_major, fw_minor);
-	}
-
-	char serial_number[SPS30_MAX_SERIAL_LEN];
-	ret = sps30_get_serial(serial_number);
-	if (ret) {
-		printf("error reading serial number\n");
-	} else {
-		printf("Serial Number: %s\n", serial_number);
-	}
 
 	ret = sps30_start_measurement();
 	if (ret < 0)
-		printf("error starting measurement\n");
-	printf("measurements started\n");
+	{
+
+	}
 	sensirion_sleep_usec(SPS30_MEASUREMENT_DURATION_USEC); /* wait 1s */
 
 	for(;;)
 	{
 		ret = sps30_read_measurement(&m);
 		if (ret < 0) {
-			printf("error reading measurement\n");
 
 		} else {
-			printf("measured values:\n"
-					"\t%0.2f pm1.0\n"
-					"\t%0.2f pm2.5\n"
-					"\t%0.2f pm4.0\n"
-					"\t%0.2f pm10.0\n"
-					"\t%0.2f nc0.5\n"
-					"\t%0.2f nc1.0\n"
-					"\t%0.2f nc2.5\n"
-					"\t%0.2f nc4.5\n"
-					"\t%0.2f nc10.0\n"
-					"\t%0.2f typical particle size\n\n",
-					m.mc_1p0, m.mc_2p5, m.mc_4p0, m.mc_10p0, m.nc_0p5, m.nc_1p0,
-					m.nc_2p5, m.nc_4p0, m.nc_10p0, m.typical_particle_size);
 			xQueueSend( xQueueCollate, ( void* ) &toQueue, ( TickType_t ) 10);
 			vTaskSuspend( NULL );
 		}
@@ -251,9 +233,7 @@ void GPS_Task(void const * argument)
 	{
 		if (rx_data != '\n' && rx_index < sizeof(rx_buffer)) {
 			rx_buffer[rx_index++] = rx_data;
-			GPS_Init();
-			ulTaskNotifyTake( pdTRUE,
-					xMaxBlockTime );
+
 		} else {
 			GPS_print((char*)rx_buffer);
 			if(GPS_validate((char*) rx_buffer))
@@ -264,10 +244,10 @@ void GPS_Task(void const * argument)
 			}
 			rx_index = 0;
 			memset(rx_buffer, 0, sizeof(rx_buffer));
-			GPS_Init();
-			ulTaskNotifyTake( pdTRUE,
-					xMaxBlockTime );
 		}
+		GPS_Init();
+		ulTaskNotifyTake( pdTRUE,
+				xMaxBlockTime );
 	}
   /* USER CODE END GPS_Task */
 }
@@ -306,7 +286,7 @@ void COLLATE_Task(void const * argument)
 			break;*/
 		}
 		counter++;
-		if (counter == 4)
+		if (counter == 2)
 		{
 			xQueueSend( xQueueSD, ( void* ) &collatedData, ( TickType_t ) 10);
 			//xQueueSend( xQueueLORA, ( void* ) &collatedData, ( TickType_t ) 10);
@@ -340,24 +320,11 @@ void SD_Task(void const * argument)
 	fres = f_mount(&FatFs, "", 1);    //1=mount now
 	if (fres != FR_OK)
 	{
-		printf("No SD Card found : (%i)\r\n", fres);
 		vTaskSuspend( NULL );
 	}
-	printf("SD Card Mounted Successfully!!!\r\n");
-	FATFS *pfs;
-	DWORD fre_clust;
-	uint32_t totalSpace, freeSpace;
 
-	f_getfree("", &fre_clust, &pfs);
-	totalSpace = (uint32_t)((pfs->n_fatent - 2) * pfs->csize * 0.5);
-	freeSpace = (uint32_t)(fre_clust * pfs->csize * 0.5);
-
-	printf("TotalSpace : %lu bytes, FreeSpace = %lu bytes\n", totalSpace, freeSpace);
 	fres = f_open(&fil, "data.bin", FA_WRITE | FA_READ | FA_OPEN_APPEND);
-	if(fres != FR_OK)
-	{
-		printf("SD CARD OK");
-	}
+
 	/* Infinite loop */
 	for(;;)
 	{
