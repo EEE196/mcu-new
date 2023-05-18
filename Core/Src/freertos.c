@@ -143,7 +143,7 @@ void MX_FREERTOS_Init(void) {
   COLLATEHandle = osThreadCreate(osThread(COLLATE), NULL);
 
   /* definition and creation of SD */
-  osThreadDef(SD, SD_Task, osPriorityNormal, 0, 128);
+  osThreadDef(SD, SD_Task, osPriorityNormal, 0, 1028);
   SDHandle = osThreadCreate(osThread(SD), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
