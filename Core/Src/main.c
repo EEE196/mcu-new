@@ -96,7 +96,8 @@ int main(void)
   /* USER CODE BEGIN 2 */
   //test_sd();
   //test_pm();
-  test_gps();
+  //test_gps();
+  test_lora();
   /* USER CODE END 2 */
 
   /* Infinite loop */

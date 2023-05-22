@@ -3,11 +3,14 @@
 #include <string.h>
 #include <usart.h>
 #include <spi.h>
+#include <tim.h>
 
 #include "fatfs.h"
 #include "../pm2.5/sps30.h"
 #include "../gps/gps.h"
-#include "../lora/lora.h"
+#include "../lora/rfm95.h"
+
+
 void test_sd( void )
 {
 	FATFS       FatFs;                //FatFs handle
@@ -146,32 +149,43 @@ void test_gps(void) {
 	GPS_Init();
 }
 
+rfm95_handle_t rfm95_handle = {
+		.spi_handle = &hspi2,
+		.nss_port = RFM95_NSS_GPIO_Port,
+		.nss_pin = RFM95_NSS_Pin,
+		.nrst_port = RFM95_NRST_GPIO_Port,
+		.nrst_pin = RFM95_NRST_Pin,
+		.irq_port = RFM95_DIO0_GPIO_Port,
+		.irq_pin = RFM95_DIO0_Pin,
+		.dio5_port = RFM95_DIO5_GPIO_Port,
+		.dio5_pin = RFM95_DIO5_Pin,
+		.device_address = {0xDE, 0xAD, 0xBE, 0xEF},
+		.application_session_key = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		.network_session_key = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		.reload_frame_counter = NULL,
+		.save_frame_counter = NULL
+};
 void test_lora(void) {
-	LoRa myLoRa;
-	myLoRa = newLoRa();
-	myLoRa.CS_port         = LoRa_CS_GPIO_Port;
-	myLoRa.CS_pin          = LoRa_CS_Pin;
-	myLoRa.reset_port      = LoRa_RST_GPIO_Port;
-	myLoRa.reset_pin       = LoRa_RST_Pin;
-	myLoRa.DIO0_port       = LoRa_DIO0_GPIO_Port;
-	myLoRa.DIO0_pin        = LoRa_DIO0_Pin;
-	myLoRa.hSPIx           = &hspi2;
 
-	myLoRa.frequency       = 868;
 
-	char   send_data[200];
-	uint16_t LoRa_status = LoRa_init(&myLoRa);
-	memset(send_data,NULL,200);
 
-	if (LoRa_status==LORA_OK){
-		printf(send_data,sizeof(send_data),"\n\r LoRa is running... :) \n\r");
-		LoRa_transmit(&myLoRa, (uint8_t*)send_data, 120, 100);
-		HAL_UART_Transmit(&huart2, (uint8_t*)send_data, 200, 200);
+	if (!rfm95_init(&rfm95_handle)) {
+		printf("RFM95 init failed\n\r");
+	} else
+	{
+		uint8_t data_packet[] = {
+				0x69, 0x45, 0x45, 0x45
+		};
+		if (!rfm95_send_data(&rfm95_handle, data_packet, sizeof(data_packet))) {
+			printf("RFM95 send failed\n\r");
+		}
+		else{
+			printf("OWSHI\n");
+		}
 	}
-	else{
-		printf(send_data,sizeof(send_data),"\n\r LoRa failed :( \n\r Error code: %d \n\r", LoRa_status);
-		HAL_UART_Transmit(&huart2, (uint8_t*)send_data, 200, 200);
-	}
-
 }
 
+
+
+
+// Create the handle for the RFM95 module.
