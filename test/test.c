@@ -7,7 +7,10 @@
 #include "fatfs.h"
 #include "../pm2.5/sps30.h"
 #include "../gps/gps.h"
-#include "../lora/lora.h"
+#include "../lora/rfm95.h"
+#include "../co2/scd30.h"
+
+
 void test_sd( void )
 {
 	FATFS       FatFs;                //FatFs handle
@@ -146,32 +149,105 @@ void test_gps(void) {
 	GPS_Init();
 }
 
+rfm95_handle_t rfm95_handle = {
+		.spi_handle = &hspi2,
+		.nss_port = RFM95_NSS_GPIO_Port,
+		.nss_pin = RFM95_NSS_Pin,
+		.nrst_port = RFM95_NRST_GPIO_Port,
+		.nrst_pin = RFM95_NRST_Pin,
+		.irq_port = RFM95_DIO0_GPIO_Port,
+		.irq_pin = RFM95_DIO0_Pin,
+		.dio5_port = RFM95_DIO5_GPIO_Port,
+		.dio5_pin = RFM95_DIO5_Pin,
+		.device_address = {0xDE, 0xAD, 0xBE, 0xEF},
+		.application_session_key = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		.network_session_key = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+		.reload_frame_counter = NULL,
+		.save_frame_counter = NULL
+};
 void test_lora(void) {
-	LoRa myLoRa;
-	myLoRa = newLoRa();
-	myLoRa.CS_port         = LoRa_CS_GPIO_Port;
-	myLoRa.CS_pin          = LoRa_CS_Pin;
-	myLoRa.reset_port      = LoRa_RST_GPIO_Port;
-	myLoRa.reset_pin       = LoRa_RST_Pin;
-	myLoRa.DIO0_port       = LoRa_DIO0_GPIO_Port;
-	myLoRa.DIO0_pin        = LoRa_DIO0_Pin;
-	myLoRa.hSPIx           = &hspi2;
 
-	myLoRa.frequency       = 868;
 
-	char   send_data[200];
-	uint16_t LoRa_status = LoRa_init(&myLoRa);
-	memset(send_data,NULL,200);
 
-	if (LoRa_status==LORA_OK){
-		printf(send_data,sizeof(send_data),"\n\r LoRa is running... :) \n\r");
-		LoRa_transmit(&myLoRa, (uint8_t*)send_data, 120, 100);
-		HAL_UART_Transmit(&huart2, (uint8_t*)send_data, 200, 200);
+	if (!rfm95_init(&rfm95_handle)) {
+		printf("RFM95 init failed\n\r");
+	} else
+	{
+		uint8_t data_packet[] = {
+				0x69, 0x45, 0x45, 0x45
+		};
+		if (!rfm95_send_data(&rfm95_handle, data_packet, sizeof(data_packet))) {
+			printf("RFM95 send failed\n\r");
+		}
+		else{
+			printf("OWSHI\n");
+		}
 	}
-	else{
-		printf(send_data,sizeof(send_data),"\n\r LoRa failed :( \n\r Error code: %d \n\r", LoRa_status);
-		HAL_UART_Transmit(&huart2, (uint8_t*)send_data, 200, 200);
-	}
-
 }
 
+void test_co(void) {
+    float co2_ppm, temperature, relative_humidity;
+    int16_t err;
+    uint16_t interval_in_seconds = 2;
+
+    /* Initialize I2C */
+    sensirion_i2c_init();
+
+    /* Busy loop for initialization, because the main loop does not work without
+     * a sensor.
+     */
+    while (scd30_probe() != NO_ERROR) {
+        printf("SCD30 sensor probing failed\n");
+        sensirion_sleep_usec(1000000u);
+    }
+    printf("SCD30 sensor probing successful\n");
+
+    scd30_set_measurement_interval(interval_in_seconds);
+    sensirion_sleep_usec(20000u);
+    scd30_start_periodic_measurement(0);
+
+    while (1) {
+        uint16_t data_ready = 0;
+        uint16_t timeout = 0;
+
+        /* Poll data_ready flag until data is available. Allow 20% more than
+         * the measurement interval to account for clock imprecision of the
+         * sensor.
+         */
+        for (timeout = 0; (100000 * timeout) < (interval_in_seconds * 1200000);
+             ++timeout) {
+            err = scd30_get_data_ready(&data_ready);
+            if (err != NO_ERROR) {
+                printf("Error reading data_ready flag: %i\n", err);
+            }
+            if (data_ready) {
+                break;
+            }
+            sensirion_sleep_usec(100000);
+        }
+        if (!data_ready) {
+            printf("Timeout waiting for data_ready flag\n");
+            continue;
+        }
+
+        /* Measure co2, temperature and relative humidity and store into
+         * variables.
+         */
+        err =
+            scd30_read_measurement(&co2_ppm, &temperature, &relative_humidity);
+        if (err != NO_ERROR) {
+            printf("error reading measurement\n");
+
+        } else {
+            printf("measured co2 concentration: %0.2f ppm, "
+                   "measured temperature: %0.2f degreeCelsius, "
+                   "measured humidity: %0.2f %%RH\n",
+                   co2_ppm, temperature, relative_humidity);
+        }
+    }
+
+    scd30_stop_periodic_measurement();
+}
+
+
+// Create the handle for the RFM95 module.
