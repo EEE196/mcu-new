@@ -300,15 +300,15 @@ void COLLATE_Task(void const * argument)
 			break;*/
 		}
 		counter++;
-		if (counter == 2)
+		if (counter == 3)
 		{
 			xQueueSend( xQueueSD, ( void* ) &collatedData, ( TickType_t ) 10);
-			//xQueueSend( xQueueLORA, ( void* ) &collatedData, ( TickType_t ) 10);
+			xQueueSend( xQueueLoRa, ( void* ) &collatedData, ( TickType_t ) 10);
 			counter = 0;
 			osDelay(2000);
-			vTaskResume( PMHandle );
-			vTaskResume( COHandle );
-			vTaskResume( GPSHandle );
+			//vTaskResume( PMHandle );
+			//vTaskResume( COHandle );
+			//vTaskResume( GPSHandle );
 			//vTaskResume( SOHandle );
 		}
 	}
@@ -412,7 +412,7 @@ void CO_Task(void const * argument)
 	uint16_t data_ready = 0;
 
 	void* pointer = &data;
-	xIPStackEvent_t toQueue = { 1, pointer };
+	xIPStackEvent_t toQueue = { 2, pointer };
 
 
 	/* Busy loop for initialization, because the main loop does not work without
