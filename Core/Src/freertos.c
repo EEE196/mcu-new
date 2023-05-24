@@ -365,7 +365,7 @@ void LORA_Task(void const * argument)
 	void* vptr_test1 = &xReceivedEvent;
 	uint8_t buffer1[sizeof(xReceivedEvent)];
 	rfm95_handle_t rfm95_handle = {
-			.spi_handle = &hspi2,
+			.spi_handle = &hspi3,
 			.nss_port = RFM95_NSS_GPIO_Port,
 			.nss_pin = RFM95_NSS_Pin,
 			.nrst_port = RFM95_NRST_GPIO_Port,
@@ -405,7 +405,7 @@ void LORA_Task(void const * argument)
 /* USER CODE END Header_CO_Task */
 void CO_Task(void const * argument)
 {
-	/* USER CODE BEGIN CO_Task */
+  /* USER CODE BEGIN CO_Task */
 	CO_t data;
 	int16_t err;
 	uint16_t interval_in_seconds = 2;
@@ -444,7 +444,7 @@ void CO_Task(void const * argument)
 			vTaskSuspend( NULL );
 		}
 	}
-	/* USER CODE END CO_Task */
+  /* USER CODE END CO_Task */
 }
 
 /* Private application code --------------------------------------------------*/
