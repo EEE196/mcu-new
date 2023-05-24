@@ -82,6 +82,7 @@ int GPS_validate(char *nmeastr){
 	else
 		return 0;// no checksum separator found there for invalid
 
+	sprintf(checkcalcstr,"%02X",calculated_check);
 	return((checkcalcstr[0] == check[0])
 			&& (checkcalcstr[1] == check[1])) ? 1 : 0 ;
 }
@@ -89,7 +90,7 @@ int GPS_validate(char *nmeastr){
 void GPS_parse(char *GPSstrParse){
 
 	if (!strncmp(GPSstrParse, "$GPRMC", 6)){
-		if(sscanf(GPSstrParse, "$GPRMC,%f,A,%c,%f,%c,%f,,%d", &GPS.utc_time, &GPS.nmea_latitude, &GPS.ns, &GPS.nmea_longitude, &GPS.ew, &GPS.speed_k, &GPS.date) >= 1)
+		if(sscanf(GPSstrParse, "$GPRMC,%f,A,%f, %c,%f,%c,%f,,%d", &GPS.utc_time, &GPS.nmea_latitude, &GPS.ns, &GPS.nmea_longitude, &GPS.ew, &GPS.speed_k, &GPS.date) >= 1)
 			return;
 	}
 }
