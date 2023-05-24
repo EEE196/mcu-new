@@ -31,6 +31,7 @@
 #include "fatfs.h"
 #include "../../lora/rfm95.h"
 #include <spi.h>
+#include "../../co2/scd30.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -62,7 +63,7 @@ typedef struct DATA
 	GPS_t GPS_Data;
 	//SO_t SO_Data;
 	struct sps30_measurement PM_Data;
-	//CO_t CO_Data;
+	CO_t CO_Data;
 } CollatedData;
 
 QueueHandle_t xQueueCollate;
@@ -74,6 +75,7 @@ osThreadId GPSHandle;
 osThreadId COLLATEHandle;
 osThreadId SDHandle;
 osThreadId LORAHandle;
+osThreadId COHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -85,6 +87,7 @@ void GPS_Task(void const * argument);
 void COLLATE_Task(void const * argument);
 void SD_Task(void const * argument);
 void LORA_Task(void const * argument);
+void CO_Task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -166,6 +169,10 @@ void MX_FREERTOS_Init(void) {
   /* definition and creation of LORA */
   osThreadDef(LORA, LORA_Task, osPriorityNormal, 0, 128);
   LORAHandle = osThreadCreate(osThread(LORA), NULL);
+
+  /* definition and creation of CO */
+  osThreadDef(CO, CO_Task, osPriorityNormal, 0, 128);
+  COHandle = osThreadCreate(osThread(CO), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -285,10 +292,10 @@ void COLLATE_Task(void const * argument)
 		case 1:
 			collatedData.PM_Data = *(struct sps30_measurement*)xReceivedEvent.pvData;
 			break;
-		/*case 2:
+		case 2:
 			collatedData.CO_Data = *(CO_t*)xReceivedEvent.pvData;
 			break;
-		case 3:
+		/*case 3:
 			collatedData.SO_Data = *(SO_t*)xReceivedEvent.pvData;
 			break;*/
 		}
@@ -300,7 +307,7 @@ void COLLATE_Task(void const * argument)
 			counter = 0;
 			osDelay(2000);
 			vTaskResume( PMHandle );
-			//vTaskResume( COHandle );
+			vTaskResume( COHandle );
 			vTaskResume( GPSHandle );
 			//vTaskResume( SOHandle );
 		}
@@ -353,7 +360,7 @@ void SD_Task(void const * argument)
 /* USER CODE END Header_LORA_Task */
 void LORA_Task(void const * argument)
 {
-	/* USER CODE BEGIN LORA_Task */
+  /* USER CODE BEGIN LORA_Task */
 	CollatedData xReceivedEvent;
 	void* vptr_test1 = &xReceivedEvent;
 	uint8_t buffer1[sizeof(xReceivedEvent)];
@@ -386,7 +393,58 @@ void LORA_Task(void const * argument)
 			printf("RFM95 send failed\n\r");
 		}
 	}
-	/* USER CODE END LORA_Task */
+  /* USER CODE END LORA_Task */
+}
+
+/* USER CODE BEGIN Header_CO_Task */
+/**
+* @brief Function implementing the CO thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_CO_Task */
+void CO_Task(void const * argument)
+{
+	/* USER CODE BEGIN CO_Task */
+	CO_t data;
+	int16_t err;
+	uint16_t interval_in_seconds = 2;
+	uint16_t data_ready = 0;
+
+	void* pointer = &data;
+	xIPStackEvent_t toQueue = { 1, pointer };
+
+
+	/* Busy loop for initialization, because the main loop does not work without
+	 * a sensor.
+	 */
+	while (scd30_probe() != NO_ERROR) {
+		sensirion_sleep_usec(1000000u);
+	}
+
+	scd30_set_measurement_interval(interval_in_seconds);
+	sensirion_sleep_usec(20000u);
+	scd30_start_periodic_measurement(0);
+
+
+	/* Measure co2, temperature and relative humidity and store into
+	 * variables.
+	 */
+
+	/* Infinite loop */
+	for(;;)
+	{
+		data_ready = 0;
+		err = scd30_get_data_ready(&data_ready);
+		if (data_ready)
+			err =
+					scd30_read_measurement(&data.co2_ppm, &data.temperature, &data.relative_humidity);
+		if (err == NO_ERROR) {
+			xQueueSend( xQueueCollate, ( void* ) &toQueue, ( TickType_t ) 10);
+			vTaskSuspend( NULL );
+		}
+	}
+	/* USER CODE END CO_Task */
 }
 
 /* Private application code --------------------------------------------------*/
