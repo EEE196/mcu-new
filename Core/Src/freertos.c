@@ -29,6 +29,8 @@
 #include "../../pm2.5/sps30.h"
 #include "../../gps/gps.h"
 #include "fatfs.h"
+#include "../../lora/rfm95.h"
+#include <spi.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -65,12 +67,13 @@ typedef struct DATA
 
 QueueHandle_t xQueueCollate;
 QueueHandle_t xQueueSD;
-//QueueHandle_t xQueueLoRa;
+QueueHandle_t xQueueLoRa;
 /* USER CODE END Variables */
 osThreadId PMHandle;
 osThreadId GPSHandle;
 osThreadId COLLATEHandle;
 osThreadId SDHandle;
+osThreadId LORAHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -81,6 +84,7 @@ void PM_Task(void const * argument);
 void GPS_Task(void const * argument);
 void COLLATE_Task(void const * argument);
 void SD_Task(void const * argument);
+void LORA_Task(void const * argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -139,7 +143,7 @@ void MX_FREERTOS_Init(void) {
   /* add queues, ... */
 	xQueueCollate = xQueueCreate( 4, sizeof( xIPStackEvent_t ) );
 	xQueueSD = xQueueCreate( 10, sizeof( CollatedData ) );
-	//xQueueLORA = xQueueCreate( 10, sizeof( CollatedData ) );
+	xQueueLoRa = xQueueCreate( 10, sizeof( CollatedData ) );
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
@@ -158,6 +162,10 @@ void MX_FREERTOS_Init(void) {
   /* definition and creation of SD */
   osThreadDef(SD, SD_Task, osPriorityNormal, 0, 2056);
   SDHandle = osThreadCreate(osThread(SD), NULL);
+
+  /* definition and creation of LORA */
+  osThreadDef(LORA, LORA_Task, osPriorityNormal, 0, 128);
+  LORAHandle = osThreadCreate(osThread(LORA), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -311,6 +319,8 @@ void SD_Task(void const * argument)
 {
   /* USER CODE BEGIN SD_Task */
 	CollatedData xReceivedEvent;
+	void* vptr_test = &xReceivedEvent;
+	uint8_t buffer[sizeof(xReceivedEvent)];
 
 	FATFS       FatFs;                //FatFs handle
 	FIL         fil;                  //File handle
@@ -326,13 +336,57 @@ void SD_Task(void const * argument)
 	{
 		xQueueReceive( xQueueSD, &xReceivedEvent, portMAX_DELAY );
 		fres = f_open(&fil, "data.bin", FA_WRITE | FA_READ | FA_OPEN_APPEND);
-		void* vptr_test = &xReceivedEvent;
-		uint8_t buffer[sizeof(xReceivedEvent)];
+		vptr_test = &xReceivedEvent;
 		memcpy(buffer, vptr_test, sizeof(xReceivedEvent));
 		f_write(&fil, buffer, sizeof(buffer), NULL);
 		f_close(&fil);
 	}
   /* USER CODE END SD_Task */
+}
+
+/* USER CODE BEGIN Header_LORA_Task */
+/**
+* @brief Function implementing the LORA thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_LORA_Task */
+void LORA_Task(void const * argument)
+{
+	/* USER CODE BEGIN LORA_Task */
+	CollatedData xReceivedEvent;
+	void* vptr_test1 = &xReceivedEvent;
+	uint8_t buffer1[sizeof(xReceivedEvent)];
+	rfm95_handle_t rfm95_handle = {
+			.spi_handle = &hspi2,
+			.nss_port = RFM95_NSS_GPIO_Port,
+			.nss_pin = RFM95_NSS_Pin,
+			.nrst_port = RFM95_NRST_GPIO_Port,
+			.nrst_pin = RFM95_NRST_Pin,
+			.irq_port = RFM95_DIO0_GPIO_Port,
+			.irq_pin = RFM95_DIO0_Pin,
+			.dio5_port = RFM95_DIO5_GPIO_Port,
+			.dio5_pin = RFM95_DIO5_Pin,
+			.device_address = {0xDE, 0xAD, 0xBE, 0xEF},
+			.application_session_key = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+			.network_session_key = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+			.reload_frame_counter = NULL,
+			.save_frame_counter = NULL
+	};
+	if (!rfm95_init(&rfm95_handle)) {
+		printf("RFM95 init failed\n\r");
+	}
+	/* Infinite loop */
+	for(;;)
+	{
+		xQueueReceive( xQueueLoRa, &xReceivedEvent, portMAX_DELAY );
+		vptr_test1 = &xReceivedEvent;
+		memcpy(buffer1, vptr_test1, sizeof(xReceivedEvent));
+		if (!rfm95_send_data(&rfm95_handle, buffer1, sizeof(buffer1))) {
+			printf("RFM95 send failed\n\r");
+		}
+	}
+	/* USER CODE END LORA_Task */
 }
 
 /* Private application code --------------------------------------------------*/
