@@ -51,15 +51,18 @@
 typedef struct DATA
 {
 	GPS_t GPS_Data;
-	//SO_t SO_Data;
-	//struct sps30_measurement PM_Data;
-	//CO_t CO_Data;
+	CO_t CO_Data;
 } CollatedData;
+struct sps30_measurement PM_Data;
+void* vptr_PM = &PM_Data;
+uint8_t buffer_PM[sizeof(PM_Data)];
 CollatedData collatedData;
 void* vptr_test = &collatedData;
 uint8_t buffer[sizeof(collatedData)];
 FRESULT     fres;                 //Result after operations
-
+uint16_t data_ready = 0;
+uint16_t ret;
+uint16_t err;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -114,11 +117,11 @@ int main(void)
 	//test_gps();
 	//test_lora();
 
-	/*
+
 
   init_pm();
   init_co();
-	 */
+
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
@@ -143,25 +146,54 @@ int main(void)
 		HAL_SuspendTick();
 		HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
 		HAL_ResumeTick();
-		uint8_t data_packet[] = {
-				0x69, 0x45, 0x45, 0x45
-		};
-		if (!rfm95_send_data(&rfm95_handle, data_packet, sizeof(data_packet))) {
-			printf("RFM95 send failed\n\r");
+		//collect CO
+		data_ready = 0;
+		err = scd30_get_data_ready(&data_ready);
+		if (data_ready)
+			err =
+					scd30_read_measurement(&collatedData.CO_Data.co2_ppm, &collatedData.CO_Data.temperature, &collatedData.CO_Data.relative_humidity);
+		if (err == NO_ERROR) {
+			printf("co data collect successful\n");
+		} else {
+			printf("co data collect failed\n");
+		}
+		//collect PM
+		ret = sps30_read_measurement(&PM_Data);
+		if (ret < 0) {
+			printf("pm data collect failed\n");
+		} else {
+			printf("pm data collect successful\n");
+		}
+		//squash structs
+		memcpy(buffer, vptr_test, sizeof(collatedData));
+		memcpy(buffer_PM, vptr_PM, sizeof(PM_Data));
+		//send to lora
+		if (!rfm95_send_data(&rfm95_handle, buffer, sizeof(buffer))) {
+			printf("lora send failed\n\r");
 		}
 		else{
-			printf("OWSHI\n");
+			printf("lora send successful\n");
 		}
-		memcpy(buffer, vptr_test, sizeof(collatedData));
+		if (!rfm95_send_data(&rfm95_handle, buffer_PM, sizeof(buffer_PM))) {
+			printf("lora send failed\n\r");
+		}
+		else{
+			printf("lora send successful\n");
+		}
+		//save to sd
 		fres = f_open(&file, "data.bin", FA_WRITE | FA_READ | FA_OPEN_APPEND);
 		f_write(&file, buffer, sizeof(buffer), NULL);
+		f_write(&file, buffer_PM, sizeof(buffer_PM), NULL);
 		f_close(&file);
+
+		//reset timer, 2seconds
 		TIM11->CNT = 0;
 		HAL_TIM_Base_Start_IT(&htim11);
 		HAL_SuspendTick();
 		HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
 		HAL_ResumeTick();
 		HAL_TIM_Base_Stop_IT(&htim11);
+		//call gps, restart
 		init_gps();
 
 	}
