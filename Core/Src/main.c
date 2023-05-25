@@ -21,12 +21,14 @@
 #include "fatfs.h"
 #include "i2c.h"
 #include "spi.h"
+#include "tim.h"
 #include "usart.h"
 #include "gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "../../test/test.h"
+#include <stdio.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -94,11 +96,16 @@ int main(void)
   MX_I2C1_Init();
   MX_USART1_UART_Init();
   MX_SPI3_Init();
+  MX_TIM11_Init();
   /* USER CODE BEGIN 2 */
   //test_sd();
   //test_pm();
   //test_gps();
-  test_lora();
+  //test_lora();
+  HAL_TIM_Base_Start(&htim11);
+  char uart_buf[50];
+  int uart_buf_len;
+  uint16_t timer_val;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -108,6 +115,18 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+	  timer_val = __HAL_TIM_GET_COUNTER(&htim11);
+
+	  // Wait for 50 ms
+	  HAL_Delay(2000);
+
+	  // Get time elapsed
+	  timer_val = __HAL_TIM_GET_COUNTER(&htim11) - timer_val;
+
+	  // Show elapsed time
+	  printf("%d\n", timer_val);
+	  // Wait again so we don't flood the Serial terminal
+	  HAL_Delay(1000);
   }
   /* USER CODE END 3 */
 }
