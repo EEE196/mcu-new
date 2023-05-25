@@ -11,6 +11,7 @@
 #include "../gps/gps.h"
 #include "../lora/rfm95.h"
 #include "../co2/scd30.h"
+#include "../sd/fatfs_sd_card.h"
 void test_sd( void );
 void test_pm( void );
 void test_lora( void );

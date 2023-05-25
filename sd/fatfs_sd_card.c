@@ -7,6 +7,9 @@
 #include "main.h"
 #include "diskio.h"
 #include "./fatfs_sd_card.h"
+#include "fatfs.h"
+FIL file;
+
 
 uint16_t Timer1, Timer2;          /* 1ms Timer Counter */
 

@@ -39,24 +39,38 @@ void init_pm( void )
 	printf("measurements started\n");
 }
 
-FIL init_sd( void )
+void init_sd( void )
 {
-	FATFS       FatFs;                //FatFs handle
-	FIL         fil;                  //File handle
-	FRESULT     fres;                 //Result after operations
-	char        buf[100];
+	do{
+		FATFS       FatFs;                //FatFs handle
+		FRESULT     fres;                 //Result after operations
+		char        buf[100];
 
-	//Mount the SD Card
-	fres = f_mount(&FatFs, "", 1);    //1=mount now
-	if (fres != FR_OK)
-	{
-		printf("No SD Card found : (%i)\r\n", fres);
+		//Mount the SD Card
+		fres = f_mount(&FatFs, "", 1);    //1=mount now
+		if (fres != FR_OK)
+		{
+			printf("No SD Card found : (%i)\r\n", fres);
+		}
+		else
+		{
+			printf("SD Card Mounted Successfully!!!\r\n");
+		}
+		fres = f_open(&file, "EmbeTronicX.txt", FA_WRITE | FA_READ | FA_CREATE_ALWAYS);
+		if(fres != FR_OK)
+		{
+			printf("File creation/open Error : (%i)\r\n", fres);
+			break;
+		}
+
+		printf("Writing data!!!\r\n");
+		//write the data
+		f_puts("Mark Guiang", &file);
+
+		//close your file
+		f_close(&file);
 	}
-	else
-	{
-		printf("SD Card Mounted Successfully!!!\r\n");
-	}
-	return fil;
+	while(false);
 }
 
 void init_gps( void )
@@ -323,7 +337,7 @@ void init_all(void)
 	FIL file;
 
 	init_pm();
-	file = init_sd();
+	init_sd();
 	init_lora();
 	init_co();
 	init_gps();

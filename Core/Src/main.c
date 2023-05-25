@@ -52,10 +52,14 @@ typedef struct DATA
 {
 	GPS_t GPS_Data;
 	//SO_t SO_Data;
-	struct sps30_measurement PM_Data;
-	CO_t CO_Data;
+	//struct sps30_measurement PM_Data;
+	//CO_t CO_Data;
 } CollatedData;
 CollatedData collatedData;
+void* vptr_test = &collatedData;
+uint8_t buffer[sizeof(collatedData)];
+FRESULT     fres;                 //Result after operations
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -111,16 +115,17 @@ int main(void)
 	//test_lora();
 
 	/*
-  FIL file;
 
   init_pm();
-  file = init_sd();
   init_co();
 	 */
 	/* USER CODE END 2 */
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
+
+	init_sd();
+
 
 	init_lora();
 
@@ -129,7 +134,6 @@ int main(void)
 	HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
 	MX_USART1_UART_Init();
 	init_gps();
-	//HAL_TIM_Base_Start_IT(&htim11);
 	while (1)
 	{
 		/* USER CODE END WHILE */
@@ -139,7 +143,27 @@ int main(void)
 		HAL_SuspendTick();
 		HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
 		HAL_ResumeTick();
-		printf("mar\n");
+		uint8_t data_packet[] = {
+				0x69, 0x45, 0x45, 0x45
+		};
+		if (!rfm95_send_data(&rfm95_handle, data_packet, sizeof(data_packet))) {
+			printf("RFM95 send failed\n\r");
+		}
+		else{
+			printf("OWSHI\n");
+		}
+		memcpy(buffer, vptr_test, sizeof(collatedData));
+		fres = f_open(&file, "data.bin", FA_WRITE | FA_READ | FA_OPEN_APPEND);
+		f_write(&file, buffer, sizeof(buffer), NULL);
+		f_close(&file);
+		TIM11->CNT = 0;
+		HAL_TIM_Base_Start_IT(&htim11);
+		HAL_SuspendTick();
+		HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+		HAL_ResumeTick();
+		HAL_TIM_Base_Stop_IT(&htim11);
+		init_gps();
+
 	}
 	/* USER CODE END 3 */
 }

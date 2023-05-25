@@ -1,6 +1,6 @@
 #ifndef __FATFS_SD_H
 #define __FATFS_SD_H
-
+#include "fatfs.h"
 /* Definitions for MMC/SDC command */
 #define CMD0     (0x40+0)       /* GO_IDLE_STATE */
 #define CMD1     (0x40+1)       /* SEND_OP_COND */
@@ -33,7 +33,7 @@ DRESULT SD_disk_write (BYTE pdrv, const BYTE* buff, DWORD sector, UINT count);
 DRESULT SD_disk_ioctl (BYTE pdrv, BYTE cmd, void* buff);
 
 #define SPI_TIMEOUT 100
-
+extern FIL file;
 extern SPI_HandleTypeDef  hspi2;
 #define HSPI_SDCARD     &hspi2
 #define SD_CS_PORT      SD_CS_GPIO_Port
