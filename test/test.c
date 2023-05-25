@@ -1,16 +1,99 @@
-#include <stdio.h>
-#include <stdbool.h>
-#include <string.h>
-#include <usart.h>
-#include <spi.h>
-
-#include "fatfs.h"
-#include "../pm2.5/sps30.h"
-#include "../gps/gps.h"
-#include "../lora/rfm95.h"
-#include "../co2/scd30.h"
+#include "test.h"
 
 
+void init_pm( void )
+{
+	struct sps30_measurement m;
+	int16_t ret;
+
+	/* Initialize I2C bus */
+	/* Busy loop for initialization, because the main loop does not work without
+	 * a sensor.
+	 */
+	while (sps30_probe() != 0) {
+		printf("SPS sensor probing failed\n");
+		sensirion_sleep_usec(1000000); /* wait 1s */
+	}
+	printf("SPS sensor probing successful\n");
+
+	uint8_t fw_major;
+	uint8_t fw_minor;
+	ret = sps30_read_firmware_version(&fw_major, &fw_minor);
+	if (ret) {
+		printf("error reading firmware version\n");
+	} else {
+		printf("FW: %u.%u\n", fw_major, fw_minor);
+	}
+
+	char serial_number[SPS30_MAX_SERIAL_LEN];
+	ret = sps30_get_serial(serial_number);
+	if (ret) {
+		printf("error reading serial number\n");
+	} else {
+		printf("Serial Number: %s\n", serial_number);
+	}
+
+	ret = sps30_start_measurement();
+	if (ret < 0)
+		printf("error starting measurement\n");
+	printf("measurements started\n");
+}
+
+FIL init_sd( void )
+{
+	FATFS       FatFs;                //FatFs handle
+	FIL         fil;                  //File handle
+	FRESULT     fres;                 //Result after operations
+	char        buf[100];
+
+	//Mount the SD Card
+	fres = f_mount(&FatFs, "", 1);    //1=mount now
+	if (fres != FR_OK)
+	{
+		printf("No SD Card found : (%i)\r\n", fres);
+	}
+	else
+	{
+		printf("SD Card Mounted Successfully!!!\r\n");
+	}
+	return fil;
+}
+
+void init_gps( void )
+{
+	GPS_Init();
+}
+
+
+void init_lora( void )
+{
+
+	if (!rfm95_init(&rfm95_handle)) {
+		printf("RFM95 init failed\n\r");
+	}
+	else
+	{
+		printf("RFM95 init successful\n");
+	}
+
+	return rfm95_handle;
+}
+
+void init_co( void )
+{
+	int16_t err;
+	uint16_t interval_in_seconds = 2;
+
+	while (scd30_probe() != NO_ERROR) {
+		printf("SCD30 sensor probing failed\n");
+		sensirion_sleep_usec(1000000u);
+	}
+	printf("SCD30 sensor probing successful\n");
+
+	scd30_set_measurement_interval(interval_in_seconds);
+	sensirion_sleep_usec(20000u);
+	scd30_start_periodic_measurement(0);
+}
 void test_sd( void )
 {
 	FATFS       FatFs;                //FatFs handle
@@ -149,22 +232,7 @@ void test_gps(void) {
 	GPS_Init();
 }
 
-rfm95_handle_t rfm95_handle = {
-		.spi_handle = &hspi2,
-		.nss_port = RFM95_NSS_GPIO_Port,
-		.nss_pin = RFM95_NSS_Pin,
-		.nrst_port = RFM95_NRST_GPIO_Port,
-		.nrst_pin = RFM95_NRST_Pin,
-		.irq_port = RFM95_DIO0_GPIO_Port,
-		.irq_pin = RFM95_DIO0_Pin,
-		.dio5_port = RFM95_DIO5_GPIO_Port,
-		.dio5_pin = RFM95_DIO5_Pin,
-		.device_address = {0xDE, 0xAD, 0xBE, 0xEF},
-		.application_session_key = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-		.network_session_key = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
-		.reload_frame_counter = NULL,
-		.save_frame_counter = NULL
-};
+
 void test_lora(void) {
 
 
@@ -186,68 +254,81 @@ void test_lora(void) {
 }
 
 void test_co(void) {
-    float co2_ppm, temperature, relative_humidity;
-    int16_t err;
-    uint16_t interval_in_seconds = 2;
+	float co2_ppm, temperature, relative_humidity;
+	int16_t err;
+	uint16_t interval_in_seconds = 2;
 
-    /* Initialize I2C */
-    sensirion_i2c_init();
+	/* Initialize I2C */
+	sensirion_i2c_init();
 
-    /* Busy loop for initialization, because the main loop does not work without
-     * a sensor.
-     */
-    while (scd30_probe() != NO_ERROR) {
-        printf("SCD30 sensor probing failed\n");
-        sensirion_sleep_usec(1000000u);
-    }
-    printf("SCD30 sensor probing successful\n");
+	/* Busy loop for initialization, because the main loop does not work without
+	 * a sensor.
+	 */
+	while (scd30_probe() != NO_ERROR) {
+		printf("SCD30 sensor probing failed\n");
+		sensirion_sleep_usec(1000000u);
+	}
+	printf("SCD30 sensor probing successful\n");
 
-    scd30_set_measurement_interval(interval_in_seconds);
-    sensirion_sleep_usec(20000u);
-    scd30_start_periodic_measurement(0);
+	scd30_set_measurement_interval(interval_in_seconds);
+	sensirion_sleep_usec(20000u);
+	scd30_start_periodic_measurement(0);
 
-    while (1) {
-        uint16_t data_ready = 0;
-        uint16_t timeout = 0;
+	while (1) {
+		uint16_t data_ready = 0;
+		uint16_t timeout = 0;
 
-        /* Poll data_ready flag until data is available. Allow 20% more than
-         * the measurement interval to account for clock imprecision of the
-         * sensor.
-         */
-        for (timeout = 0; (100000 * timeout) < (interval_in_seconds * 1200000);
-             ++timeout) {
-            err = scd30_get_data_ready(&data_ready);
-            if (err != NO_ERROR) {
-                printf("Error reading data_ready flag: %i\n", err);
-            }
-            if (data_ready) {
-                break;
-            }
-            sensirion_sleep_usec(100000);
-        }
-        if (!data_ready) {
-            printf("Timeout waiting for data_ready flag\n");
-            continue;
-        }
+		/* Poll data_ready flag until data is available. Allow 20% more than
+		 * the measurement interval to account for clock imprecision of the
+		 * sensor.
+		 */
+		for (timeout = 0; (100000 * timeout) < (interval_in_seconds * 1200000);
+				++timeout) {
+			err = scd30_get_data_ready(&data_ready);
+			if (err != NO_ERROR) {
+				printf("Error reading data_ready flag: %i\n", err);
+			}
+			if (data_ready) {
+				break;
+			}
+			sensirion_sleep_usec(100000);
+		}
+		if (!data_ready) {
+			printf("Timeout waiting for data_ready flag\n");
+			continue;
+		}
 
-        /* Measure co2, temperature and relative humidity and store into
-         * variables.
-         */
-        err =
-            scd30_read_measurement(&co2_ppm, &temperature, &relative_humidity);
-        if (err != NO_ERROR) {
-            printf("error reading measurement\n");
+		/* Measure co2, temperature and relative humidity and store into
+		 * variables.
+		 */
+		err =
+				scd30_read_measurement(&co2_ppm, &temperature, &relative_humidity);
+		if (err != NO_ERROR) {
+			printf("error reading measurement\n");
 
-        } else {
-            printf("measured co2 concentration: %0.2f ppm, "
-                   "measured temperature: %0.2f degreeCelsius, "
-                   "measured humidity: %0.2f %%RH\n",
-                   co2_ppm, temperature, relative_humidity);
-        }
-    }
+		} else {
+			printf("measured co2 concentration: %0.2f ppm, "
+					"measured temperature: %0.2f degreeCelsius, "
+					"measured humidity: %0.2f %%RH\n",
+					co2_ppm, temperature, relative_humidity);
+		}
+	}
 
-    scd30_stop_periodic_measurement();
+	scd30_stop_periodic_measurement();
 }
 
+void init_all(void)
+{
+	rfm95_handle_t loraHandle;
+	FIL file;
 
+	init_pm();
+	file = init_sd();
+	init_lora();
+	init_co();
+	init_gps();
+
+
+
+}
 // Create the handle for the RFM95 module.

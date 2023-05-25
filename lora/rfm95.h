@@ -133,6 +133,7 @@ typedef struct {
 
 } rfm95_handle_t;
 
+extern rfm95_handle_t rfm95_handle;
 bool rfm95_init(rfm95_handle_t *handle);
 
 bool rfm95_set_power(rfm95_handle_t *handle, int8_t power);

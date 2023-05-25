@@ -87,7 +87,7 @@ int GPS_validate(char *nmeastr){
 			&& (checkcalcstr[1] == check[1])) ? 1 : 0 ;
 }
 
-void GPS_parse(char *GPSstrParse){
+int GPS_parse(char *GPSstrParse){
 
 	if (!strncmp(GPSstrParse, "$GPRMC", 6)){
 		printf(GPSstrParse);
@@ -100,9 +100,12 @@ void GPS_parse(char *GPSstrParse){
 								"\t%d date\n",
 								GPS.nmea_latitude, GPS.ns, GPS.nmea_longitude, GPS.ew, GPS.utc_time, GPS.date
 						);
-			return;
+			return 1;
 
 		}
+	}
+	else {
+		return 0;
 	}
 }
 
@@ -117,19 +120,4 @@ float GPS_nmea_to_dec(float deg_coord, char nsew) {
 	return decimal;
 }
 
-void GPS_UART_CallBack(){
-	if (rx_data != '\n' && rx_index < sizeof(rx_buffer)) {
-		rx_buffer[rx_index++] = rx_data;
-	} else {
 
-		if(GPS_validate((char*) rx_buffer))
-		{
-			GPS_parse((char*) rx_buffer);
-
-		}
-
-		rx_index = 0;
-		memset(rx_buffer, 0, sizeof(rx_buffer));
-	}
-	HAL_UART_Receive_IT(GPS_USART, &rx_data, 1);
-}

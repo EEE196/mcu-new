@@ -3,7 +3,7 @@
 
 #include <assert.h>
 #include <string.h>
-
+#include <spi.h>
 #define RFM9x_VER 0x12
 
 /**
@@ -81,6 +81,23 @@ static const unsigned char eu863_lora_frequency[8][3] = {
 unsigned char NwkSkey[16];
 unsigned char AppSkey[16];
 unsigned char DevAddr[4];
+
+rfm95_handle_t rfm95_handle = {
+			.spi_handle = &hspi3,
+			.nss_port = RFM95_NSS_GPIO_Port,
+			.nss_pin = RFM95_NSS_Pin,
+			.nrst_port = RFM95_NRST_GPIO_Port,
+			.nrst_pin = RFM95_NRST_Pin,
+			.irq_port = RFM95_DIO0_GPIO_Port,
+			.irq_pin = RFM95_DIO0_Pin,
+			.dio5_port = RFM95_DIO5_GPIO_Port,
+			.dio5_pin = RFM95_DIO5_Pin,
+			.device_address = {0xDE, 0xAD, 0xBE, 0xEF},
+			.application_session_key = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+			.network_session_key = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+			.reload_frame_counter = NULL,
+			.save_frame_counter = NULL
+	};
 
 static bool rfm95_read(rfm95_handle_t *handle, rfm95_register_t reg, uint8_t *buffer)
 {
