@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "adc.h"
 #include "fatfs.h"
 #include "i2c.h"
 #include "spi.h"
@@ -29,6 +30,7 @@
 /* USER CODE BEGIN Includes */
 #include "../../test/test.h"
 #include <stdio.h>
+#include "../../so/so.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,6 +52,7 @@
 /* USER CODE BEGIN PV */
 typedef struct DATA
 {
+	uint32_t SO_ppm;
 	GPS_t GPS_Data;
 	CO_t CO_Data;
 } CollatedData;
@@ -63,6 +66,7 @@ FRESULT     fres;                 //Result after operations
 uint16_t data_ready = 0;
 uint16_t ret;
 uint16_t err;
+uint32_t data_conversion;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -108,9 +112,10 @@ int main(void)
 	MX_USART2_UART_Init();
 	MX_FATFS_Init();
 	MX_I2C1_Init();
-	//MX_USART1_UART_Init();
+	MX_USART1_UART_Init();
 	MX_SPI3_Init();
 	MX_TIM11_Init();
+	MX_ADC1_Init();
 	/* USER CODE BEGIN 2 */
 	//test_sd();
 	//test_pm();
@@ -119,8 +124,8 @@ int main(void)
 
 
 
-  init_pm();
-  init_co();
+	init_pm();
+	init_co();
 
 	/* USER CODE END 2 */
 
@@ -146,6 +151,31 @@ int main(void)
 		HAL_SuspendTick();
 		HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
 		HAL_ResumeTick();
+		//collect SO
+		HAL_ADC_Start(&hadc1);
+
+		HAL_ADC_PollForConversion(&hadc1, 100);
+
+		data_conversion = HAL_ADC_GetValue(&hadc1);
+		printf("%f\n", so_convert(data_conversion));
+		HAL_ADC_Start(&hadc1);
+
+		HAL_ADC_PollForConversion(&hadc1, 100);
+
+		data_conversion = HAL_ADC_GetValue(&hadc1);
+		printf("%f\n", so_convert(data_conversion));
+
+		HAL_ADC_Start(&hadc1);
+
+		HAL_ADC_PollForConversion(&hadc1, 100);
+
+		data_conversion = HAL_ADC_GetValue(&hadc1);
+		printf("%f\n", so_convert(data_conversion));
+
+		HAL_ADC_Stop(&hadc1);
+		printf("done\n");
+		HAL_Delay(1000);
+
 		//collect CO
 		data_ready = 0;
 		err = scd30_get_data_ready(&data_ready);
