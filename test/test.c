@@ -14,29 +14,11 @@ void init_pm( void )
 		printf("SPS sensor probing failed\n");
 		sensirion_sleep_usec(1000000); /* wait 1s */
 	}
-	printf("SPS sensor probing successful\n");
-
-	uint8_t fw_major;
-	uint8_t fw_minor;
-	ret = sps30_read_firmware_version(&fw_major, &fw_minor);
-	if (ret) {
-		printf("error reading firmware version\n");
-	} else {
-		printf("FW: %u.%u\n", fw_major, fw_minor);
-	}
-
-	char serial_number[SPS30_MAX_SERIAL_LEN];
-	ret = sps30_get_serial(serial_number);
-	if (ret) {
-		printf("error reading serial number\n");
-	} else {
-		printf("Serial Number: %s\n", serial_number);
-	}
-
+	printf("PM INIT SUCCESSFUL\n");
 	ret = sps30_start_measurement();
 	if (ret < 0)
 		printf("error starting measurement\n");
-	printf("measurements started\n");
+
 }
 
 void init_sd( void )
@@ -52,29 +34,17 @@ void init_sd( void )
 		{
 			printf("No SD Card found : (%i)\r\n", fres);
 		}
-		else
-		{
-			printf("SD Card Mounted Successfully!!!\r\n");
-		}
-		fres = f_open(&file, "EmbeTronicX.txt", FA_WRITE | FA_READ | FA_CREATE_ALWAYS);
-		if(fres != FR_OK)
-		{
-			printf("File creation/open Error : (%i)\r\n", fres);
-			break;
+		else {
+			printf("SD INIT SUCCESSFUL\n");
 		}
 
-		printf("Writing data!!!\r\n");
-		//write the data
-		f_puts("Mark Guiang", &file);
-
-		//close your file
-		f_close(&file);
 	}
 	while(false);
 }
 
 void init_gps( void )
 {
+	printf("GPS INIT SUCCESSFUL\n");
 	GPS_Init();
 }
 
@@ -87,7 +57,7 @@ void init_lora( void )
 	}
 	else
 	{
-		printf("RFM95 init successful\n");
+		printf("RFM95 INIT SUCCESSFUL\n");
 	}
 
 	return rfm95_handle;
@@ -95,14 +65,13 @@ void init_lora( void )
 
 void init_co( void )
 {
-	int16_t err;
 	uint16_t interval_in_seconds = 2;
 
 	while (scd30_probe() != NO_ERROR) {
 		printf("SCD30 sensor probing failed\n");
 		sensirion_sleep_usec(1000000u);
 	}
-	printf("SCD30 sensor probing successful\n");
+	printf("CO2 INIT SUCCESSFUL\n");
 
 	scd30_set_measurement_interval(interval_in_seconds);
 	sensirion_sleep_usec(20000u);

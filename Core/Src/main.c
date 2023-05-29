@@ -52,7 +52,7 @@
 /* USER CODE BEGIN PV */
 typedef struct DATA
 {
-	float SO_ppm;
+	uint32_t SO_ppm;
 	GPS_t GPS_Data;
 	CO_t CO_Data;
 } CollatedData;
@@ -69,6 +69,8 @@ uint16_t err;
 uint32_t vgas;
 uint32_t vgas0;
 uint32_t vtemp;
+uint16_t vrefint_cal;                        // VREFINT calibration value
+uint32_t vref;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -125,9 +127,9 @@ int main(void)
 	//test_lora();
 
 
+	init_co();
 
 	init_pm();
-	init_co();
 
 	/* USER CODE END 2 */
 
@@ -165,17 +167,26 @@ int main(void)
 		HAL_ADC_Start(&hadc1);
 		HAL_ADC_PollForConversion(&hadc1, 100);
 		vtemp = HAL_ADC_GetValue(&hadc1);
+
+		HAL_ADC_Start(&hadc1);
+		HAL_ADC_PollForConversion(&hadc1, 100);
 		HAL_ADC_Stop(&hadc1);
-		collatedData.SO_ppm = so_convert(vgas, vgas0, vtemp);
-		printf("%f ppm\n", collatedData.SO_ppm);
+
+
+		vrefint_cal= *((uint16_t*)VREFINT_CAL_ADDR); // read VREFINT_CAL_ADDR memory location
+		vref = 3.3*vrefint_cal/HAL_ADC_GetValue(&hadc1);
+		//printf("%f \n", vref);
+
+		collatedData.SO_ppm = so_convert(vgas, vgas0, vtemp, vref);
+		printf("SO2 SENSOR COLLECTION:\n\t%d ppm SO2\n", collatedData.SO_ppm);
 		//collect CO
 		data_ready = 0;
-		err = scd30_get_data_ready(&data_ready);
+		err = scd30_get_data_ready(&data_ready)	;
 		if (data_ready)
 			err =
 					scd30_read_measurement(&collatedData.CO_Data.co2_ppm, &collatedData.CO_Data.temperature, &collatedData.CO_Data.relative_humidity);
 		if (err == NO_ERROR) {
-			printf("co data collect successful\n");
+			printf("CO2 SENSOR COLLECTION:\n\t%f ppm CO2\n\t%f °C\n\t%f %%RH\n", collatedData.CO_Data.co2_ppm, collatedData.CO_Data.temperature, collatedData.CO_Data.relative_humidity);
 		} else {
 			printf("co data collect failed\n");
 		}
@@ -184,30 +195,41 @@ int main(void)
 		if (ret < 0) {
 			printf("pm data collect failed\n");
 		} else {
-			printf("pm data collect successful\n");
+			printf("PM SENSOR COLLECTION:\n"
+					"\t%0.2f pm1.0\n"
+					"\t%0.2f pm2.5\n"
+					"\t%0.2f pm4.0\n"
+					"\t%0.2f pm10.0\n"
+					"\t%0.2f nc0.5\n"
+					"\t%0.2f nc1.0\n"
+					"\t%0.2f nc2.5\n"
+					"\t%0.2f nc4.5\n"
+					"\t%0.2f nc10.0\n"
+					"\t%0.2f typical particle size\n\n",
+					PM_Data.mc_1p0, PM_Data.mc_2p5, PM_Data.mc_4p0, PM_Data.mc_10p0, PM_Data.nc_0p5, PM_Data.nc_1p0,
+					PM_Data.nc_2p5, PM_Data.nc_4p0, PM_Data.nc_10p0, PM_Data.typical_particle_size);
 		}
+
 		//squash structs
 		memcpy(buffer, vptr_test, sizeof(collatedData));
 		memcpy(buffer_PM, vptr_PM, sizeof(PM_Data));
 		//send to lora
-		if (!rfm95_send_data(&rfm95_handle, buffer, sizeof(buffer))) {
+		if (!rfm95_send_data(&rfm95_handle, buffer_PM, sizeof(buffer_PM)) && !rfm95_send_data(&rfm95_handle, buffer_PM, sizeof(buffer_PM))) {
 			printf("lora send failed\n\r");
 		}
 		else{
-			printf("lora send successful\n");
-		}
-		if (!rfm95_send_data(&rfm95_handle, buffer_PM, sizeof(buffer_PM))) {
-			printf("lora send failed\n\r");
-		}
-		else{
-			printf("lora send successful\n");
+			printf("LORA SEND SUCCESSFUL\n");
 		}
 		//save to sd
 		fres = f_open(&file, "data.bin", FA_WRITE | FA_READ | FA_OPEN_APPEND);
-		f_write(&file, buffer, sizeof(buffer), NULL);
-		f_write(&file, buffer_PM, sizeof(buffer_PM), NULL);
-		f_close(&file);
-
+		if(fres != FR_OK)
+		{
+			printf("File creation/open Error : (%i)\r\n", fres);
+		} else {
+			f_write(&file, buffer_PM, sizeof(buffer_PM), NULL);
+			f_close(&file);
+			printf("SD WRITE SUCCESSFUL\n");
+		}
 		//reset timer, 2seconds
 		TIM11->CNT = 0;
 		HAL_TIM_Base_Start_IT(&htim11);
@@ -216,7 +238,7 @@ int main(void)
 		HAL_ResumeTick();
 		HAL_TIM_Base_Stop_IT(&htim11);
 		//call gps, restart
-		init_gps();
+		GPS_Init();
 
 	}
 	/* USER CODE END 3 */
