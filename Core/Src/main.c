@@ -52,7 +52,7 @@
 /* USER CODE BEGIN PV */
 typedef struct DATA
 {
-	uint32_t SO_ppm;
+	float SO_ppm;
 	GPS_t GPS_Data;
 	CO_t CO_Data;
 } CollatedData;
@@ -66,7 +66,9 @@ FRESULT     fres;                 //Result after operations
 uint16_t data_ready = 0;
 uint16_t ret;
 uint16_t err;
-uint32_t data_conversion;
+uint32_t vgas;
+uint32_t vgas0;
+uint32_t vtemp;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -153,29 +155,19 @@ int main(void)
 		HAL_ResumeTick();
 		//collect SO
 		HAL_ADC_Start(&hadc1);
-
 		HAL_ADC_PollForConversion(&hadc1, 100);
-
-		data_conversion = HAL_ADC_GetValue(&hadc1);
-		printf("%f\n", so_convert(data_conversion));
-		HAL_ADC_Start(&hadc1);
-
-		HAL_ADC_PollForConversion(&hadc1, 100);
-
-		data_conversion = HAL_ADC_GetValue(&hadc1);
-		printf("%f\n", so_convert(data_conversion));
+		vgas = HAL_ADC_GetValue(&hadc1);
 
 		HAL_ADC_Start(&hadc1);
-
 		HAL_ADC_PollForConversion(&hadc1, 100);
+		vgas0 = HAL_ADC_GetValue(&hadc1);
 
-		data_conversion = HAL_ADC_GetValue(&hadc1);
-		printf("%f\n", so_convert(data_conversion));
-
+		HAL_ADC_Start(&hadc1);
+		HAL_ADC_PollForConversion(&hadc1, 100);
+		vtemp = HAL_ADC_GetValue(&hadc1);
 		HAL_ADC_Stop(&hadc1);
-		printf("done\n");
-		HAL_Delay(1000);
-
+		collatedData.SO_ppm = so_convert(vgas, vgas0, vtemp);
+		printf("%f ppm\n", collatedData.SO_ppm);
 		//collect CO
 		data_ready = 0;
 		err = scd30_get_data_ready(&data_ready);
