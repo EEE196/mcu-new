@@ -214,18 +214,19 @@ int main(void)
 		memcpy(buffer, vptr_test, sizeof(collatedData));
 		memcpy(buffer_PM, vptr_PM, sizeof(PM_Data));
 		//send to lora
-		if (!rfm95_send_data(&rfm95_handle, buffer_PM, sizeof(buffer_PM)) && !rfm95_send_data(&rfm95_handle, buffer_PM, sizeof(buffer_PM))) {
+		if (!rfm95_send_data(&rfm95_handle, buffer, sizeof(buffer)) && !rfm95_send_data(&rfm95_handle, buffer_PM, sizeof(buffer_PM))) {
 			printf("lora send failed\n\r");
 		}
 		else{
 			printf("LORA SEND SUCCESSFUL\n");
 		}
 		//save to sd
-		fres = f_open(&file, "data.bin", FA_WRITE | FA_READ | FA_OPEN_APPEND);
+		fres = f_open(&file, "mark.bin", FA_WRITE | FA_READ | FA_OPEN_APPEND);
 		if(fres != FR_OK)
 		{
 			printf("File creation/open Error : (%i)\r\n", fres);
 		} else {
+			f_write(&file, buffer, sizeof(buffer), NULL);
 			f_write(&file, buffer_PM, sizeof(buffer_PM), NULL);
 			f_close(&file);
 			printf("SD WRITE SUCCESSFUL\n");
