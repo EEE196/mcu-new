@@ -53,17 +53,17 @@ extern "C" {
 /** The fan speed is out of range */
 #define SPS30_DEVICE_STATUS_FAN_SPEED_WARNING (1 << 21)
 
-struct sps30_measurement {
+struct __attribute__((packed)) sps30_measurement {
     float mc_1p0;
     float mc_2p5;
     float mc_4p0;
     float mc_10p0;
-    float nc_0p5;
-    float nc_1p0;
-    float nc_2p5;
-    float nc_4p0;
-    float nc_10p0;
     float typical_particle_size;
+    uint16_t nc_0p5;
+    uint16_t nc_1p0;
+    uint16_t nc_2p5;
+    uint16_t nc_4p0;
+    uint16_t nc_10p0;
 };
 
 /**

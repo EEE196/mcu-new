@@ -50,15 +50,13 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-typedef struct DATA
+typedef struct __attribute__((packed)) DATA
 {
-	uint32_t SO_ppm;
-	GPS_t GPS_Data;
+	struct sps30_measurement PM_Data;
 	CO_t CO_Data;
+	GPS_t GPS_Data;
+	uint16_t SO_ppm;
 } CollatedData;
-struct sps30_measurement PM_Data;
-void* vptr_PM = &PM_Data;
-uint8_t buffer_PM[sizeof(PM_Data)];
 CollatedData collatedData;
 void* vptr_test = &collatedData;
 uint8_t buffer[sizeof(collatedData)];
@@ -191,7 +189,7 @@ int main(void)
 			printf("co data collect failed\n");
 		}
 		//collect PM
-		ret = sps30_read_measurement(&PM_Data);
+		ret = sps30_read_measurement(&collatedData.PM_Data);
 		if (ret < 0) {
 			printf("pm data collect failed\n");
 		} else {
@@ -206,15 +204,14 @@ int main(void)
 					"\t%0.2f nc4.5\n"
 					"\t%0.2f nc10.0\n"
 					"\t%0.2f typical particle size\n\n",
-					PM_Data.mc_1p0, PM_Data.mc_2p5, PM_Data.mc_4p0, PM_Data.mc_10p0, PM_Data.nc_0p5, PM_Data.nc_1p0,
-					PM_Data.nc_2p5, PM_Data.nc_4p0, PM_Data.nc_10p0, PM_Data.typical_particle_size);
+					collatedData.PM_Data.mc_1p0, collatedData.PM_Data.mc_2p5, collatedData.PM_Data.mc_4p0, collatedData.PM_Data.mc_10p0, collatedData.PM_Data.nc_0p5, collatedData.PM_Data.nc_1p0,
+					collatedData.PM_Data.nc_2p5, collatedData.PM_Data.nc_4p0, collatedData.PM_Data.nc_10p0, collatedData.PM_Data.typical_particle_size);
 		}
 
 		//squash structs
 		memcpy(buffer, vptr_test, sizeof(collatedData));
-		memcpy(buffer_PM, vptr_PM, sizeof(PM_Data));
 		//send to lora
-		if (!rfm95_send_data(&rfm95_handle, buffer, sizeof(buffer)) && !rfm95_send_data(&rfm95_handle, buffer_PM, sizeof(buffer_PM))) {
+		if (!rfm95_send_data(&rfm95_handle, buffer, sizeof(buffer))) {
 			printf("lora send failed\n\r");
 		}
 		else{
@@ -227,7 +224,6 @@ int main(void)
 			printf("File creation/open Error : (%i)\r\n", fres);
 		} else {
 			f_write(&file, buffer, sizeof(buffer), NULL);
-			f_write(&file, buffer_PM, sizeof(buffer_PM), NULL);
 			f_close(&file);
 			printf("SD WRITE SUCCESSFUL\n");
 		}

@@ -12,18 +12,15 @@
 #define	GPS_USART	&huart1
 #define GPSBUFSIZE  128       // GPS buffer size
 
-typedef struct{
+typedef struct __attribute__((packed)) {
 
 
     // GGA - Global Positioning System Fixed Data
     float nmea_longitude;
     float nmea_latitude;
     float utc_time;
-    float speed_k;
     // RMC - Recommended Minimmum Specific GNS Data
-    int date;
-    char ns, ew;
-
+    uint16_t date;
 } GPS_t;
 
 #if (GPS_DEBUG == 1)

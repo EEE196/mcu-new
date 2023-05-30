@@ -35,7 +35,8 @@ uint8_t rx_buffer[GPSBUFSIZE];
 uint8_t rx_index = 0;
 
 GPS_t GPS;
-
+float speed_k;
+char ns,ew;
 #if (GPS_DEBUG == 1)
 void GPS_print(char *data){
 	for(int i=0; i<GPSBUFSIZE; i++) {
@@ -92,13 +93,13 @@ int GPS_parse(char *GPSstrParse){
 	if (!strncmp(GPSstrParse, "$GPRMC", 6)){
 		printf(GPSstrParse);
 		printf("\n");
-		if(sscanf(GPSstrParse, "$GPRMC,%f,A,%f,%c,%f,%c,%f,,%d", &GPS.utc_time, &GPS.nmea_latitude, &GPS.ns, &GPS.nmea_longitude, &GPS.ew, &GPS.speed_k, &GPS.date) >= 1){
+		if(sscanf(GPSstrParse, "$GPRMC,%f,A,%f,%c,%f,%c,%f,,%d", &GPS.utc_time, &GPS.nmea_latitude, &ns, &GPS.nmea_longitude, &ew, &speed_k, &GPS.date) >= 1){
 			printf("measured values:\n"
 								"\t%0.5f %c latitude\n"
 								"\t%0.5f %c longitude\n"
 								"\t%0.2f time\n"
 								"\t%d date\n",
-								GPS.nmea_latitude, GPS.ns, GPS.nmea_longitude, GPS.ew, GPS.utc_time, GPS.date
+								GPS.nmea_latitude, ns, GPS.nmea_longitude, ew, GPS.utc_time, GPS.date
 						);
 			return 1;
 
