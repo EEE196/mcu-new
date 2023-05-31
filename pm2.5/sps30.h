@@ -64,6 +64,7 @@ struct __attribute__((packed)) sps30_measurement {
     uint16_t nc_2p5;
     uint16_t nc_4p0;
     uint16_t nc_10p0;
+    uint16_t SO_ppm;
 };
 
 /**

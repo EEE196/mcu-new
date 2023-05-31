@@ -50,12 +50,11 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-typedef struct __attribute__((packed)) DATA
+typedef struct DATA
 {
 	struct sps30_measurement PM_Data;
 	CO_t CO_Data;
 	GPS_t GPS_Data;
-	uint16_t SO_ppm;
 } CollatedData;
 CollatedData collatedData;
 void* vptr_test = &collatedData;
@@ -175,8 +174,8 @@ int main(void)
 		vref = 3.3*vrefint_cal/HAL_ADC_GetValue(&hadc1);
 		//printf("%f \n", vref);
 
-		collatedData.SO_ppm = so_convert(vgas, vgas0, vtemp, vref);
-		printf("SO2 SENSOR COLLECTION:\n\t%d ppm SO2\n", collatedData.SO_ppm);
+		collatedData.PM_Data.SO_ppm = so_convert(vgas, vgas0, vtemp, vref);
+		printf("SO2 SENSOR COLLECTION:\n\t%d ppm SO2\n", collatedData.PM_Data.SO_ppm);
 		//collect CO
 		data_ready = 0;
 		err = scd30_get_data_ready(&data_ready)	;
