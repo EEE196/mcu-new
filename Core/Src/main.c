@@ -193,18 +193,12 @@ int main(void)
 			printf("pm data collect failed\n");
 		} else {
 			printf("PM SENSOR COLLECTION:\n"
-					"\t%0.2f pm1.0\n"
-					"\t%0.2f pm2.5\n"
-					"\t%0.2f pm4.0\n"
-					"\t%0.2f pm10.0\n"
-					"\t%0.2f nc0.5\n"
-					"\t%0.2f nc1.0\n"
-					"\t%0.2f nc2.5\n"
-					"\t%0.2f nc4.5\n"
-					"\t%0.2f nc10.0\n"
-					"\t%0.2f typical particle size\n\n",
-					collatedData.PM_Data.mc_1p0, collatedData.PM_Data.mc_2p5, collatedData.PM_Data.mc_4p0, collatedData.PM_Data.mc_10p0, collatedData.PM_Data.nc_0p5, collatedData.PM_Data.nc_1p0,
-					collatedData.PM_Data.nc_2p5, collatedData.PM_Data.nc_4p0, collatedData.PM_Data.nc_10p0, collatedData.PM_Data.typical_particle_size);
+					"\t%f pm2.5\n"
+					"\t%f pm10.0\n"
+					"\t%f nc2.5\n"
+					"\t%f nc10.0\n",
+					collatedData.PM_Data.mc_2p5, collatedData.PM_Data.mc_10p0,
+					collatedData.PM_Data.nc_2p5, collatedData.PM_Data.nc_10p0);
 		}
 
 		//squash structs
