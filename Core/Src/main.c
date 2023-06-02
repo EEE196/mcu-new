@@ -143,6 +143,14 @@ int main(void)
 	HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
 	MX_USART1_UART_Init();
 	init_gps();
+	HAL_PWR_EnableSleepOnExit ();
+	HAL_SuspendTick();
+	HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+	HAL_ResumeTick();
+	int length = snprintf(NULL, 0, "%d-%f.bin",collatedData.GPS_Data.date, collatedData.GPS_Data.utc_time);
+	char comb_str[length+1];
+	sprintf(comb_str, "%d-%f.bin",collatedData.GPS_Data.date, collatedData.GPS_Data.utc_time);
+	init_gps();
 	while (1)
 	{
 		/* USER CODE END WHILE */
@@ -211,7 +219,7 @@ int main(void)
 			printf("LORA SEND SUCCESSFUL\n");
 		}
 		//save to sd
-		fres = f_open(&file, "mark.bin", FA_WRITE | FA_READ | FA_OPEN_APPEND);
+		fres = f_open(&file, comb_str, FA_WRITE | FA_READ | FA_OPEN_APPEND);
 		if(fres != FR_OK)
 		{
 			printf("File creation/open Error : (%i)\r\n", fres);
