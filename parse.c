@@ -7,7 +7,7 @@
 #include <string.h>
 
 // Maximum range of bytes
-#define MAX 1000
+#define MAX 30000
 typedef struct{
 
 
@@ -48,8 +48,6 @@ int main(int argc, char* argv[])
 	long filelen;
 	char* buffer;
 
-	// Stores the bytes to read
-	char str[MAX];
 
 	// If the file exists and has
 	// read permission
@@ -65,11 +63,13 @@ int main(int argc, char* argv[])
 
 	buffer = (char *)malloc(filelen * sizeof(char)); // Enough memory for the file
 	fread(buffer, filelen, 1, fileptr); // Read in the entire file
-	
-	
 	fclose(fileptr); // Close the file
 
-	memcpy(&collatedData, buffer, sizeof(collatedData));
+	int numChunks = bufferSize / sizeof(collatedData);
+	for(int i = 0; i<numChunks; i++) {
+		char* chunk = buffer + (i+sizeof(collatedData));
+		memcpy(&collatedData, chunk, sizeof(collatedData));
+	}
 
 	return 0;
 }
