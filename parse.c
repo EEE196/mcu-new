@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <dirent.h>
 
 // Maximum range of bytes
 #define MAX 30000
@@ -44,32 +45,54 @@ int main(int argc, char* argv[])
 	CollatedData collatedData;
 	// Pointer to the file to be
 	// read from
+	DIR* d;
+	struct dirent *dir;
 	FILE* fileptr;
 	long filelen;
 	char* buffer;
 
+	d = opendir(".");
+	if (d) 
+	{
+		while ((dir = readdir(d)) != NULL)
+		{
+			/* On linux/Unix we don't want current and parent directories
+         		* If you're on Windows machine remove this two lines
+         		*/
+			if (!strcmp (dir->d_name, "."))
+			    continue;
+			if (!strcmp (dir->d_name, ".."))    
+			    continue;
+			fileptr = fopen(dir->d_name, "rb");
+			if (fileptr != NULL)
+			{
+				// Get the filename
+				char* filename = dir->d_name;
 
-	// If the file exists and has
-	// read permission
-	fileptr = fopen(argv[1], "rb");
+				// Rename the file extension to ".csv"
+				char* extension = strrchr(filename, '.');
+				if (extension != NULL) {
+				    strcpy(extension, ".csv");
+				} else {
+				    strcat(filename, ".csv");
+				}
+				printf("%s\n", filename);
+				/*
+				fseek(fileptr, 0, SEEK_END);          // Jump to the end of the file
+				filelen = ftell(fileptr);             // Get the current byte offset in the file
+				rewind(fileptr);                      // Jump back to the beginning of the file
 
-	if (fileptr == NULL) {
-		return 1;
+				buffer = (char *)malloc(filelen * sizeof(char)); // Enough memory for the file
+				fread(buffer, filelen, 1, fileptr); // Read in the entire file
+
+				int numChunks = filelen / sizeof(collatedData);
+				for(int i = 0; i<numChunks; i++) {
+					char* chunk = buffer + (i+sizeof(collatedData));
+					memcpy(&collatedData, chunk, sizeof(collatedData));
+				}
+				*/
+				fclose(fileptr);
+			}
+		}
 	}
-
-	fseek(fileptr, 0, SEEK_END);          // Jump to the end of the file
-	filelen = ftell(fileptr);             // Get the current byte offset in the file
-	rewind(fileptr);                      // Jump back to the beginning of the file
-
-	buffer = (char *)malloc(filelen * sizeof(char)); // Enough memory for the file
-	fread(buffer, filelen, 1, fileptr); // Read in the entire file
-	fclose(fileptr); // Close the file
-
-	int numChunks = bufferSize / sizeof(collatedData);
-	for(int i = 0; i<numChunks; i++) {
-		char* chunk = buffer + (i+sizeof(collatedData));
-		memcpy(&collatedData, chunk, sizeof(collatedData));
-	}
-
-	return 0;
 }
