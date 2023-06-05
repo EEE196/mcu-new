@@ -237,6 +237,7 @@ int main(void)
 		HAL_TIM_Base_Stop_IT(&htim11);
 		//call gps, restart
 		GPS_Init();
+		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5); // Toggle The Output (LED) Pin
 
 	}
 	/* USER CODE END 3 */
@@ -309,7 +310,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
 	if(GPIO_Pin == GPIO_PIN_13) // If The INT Source Is EXTI Line9 (A9 Pin)
 	{
-		HAL_GPIO_TogglePin(GPIOA, GPIO_PIN_5); // Toggle The Output (LED) Pin
 	}
 }
 void GPS_UART_CallBack(){
