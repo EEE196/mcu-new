@@ -93,12 +93,12 @@ int GPS_parse(char *GPSstrParse){
 	if (!strncmp(GPSstrParse, "$GPRMC", 6)){
 		printf(GPSstrParse);
 		printf("\n");
-		if(sscanf(GPSstrParse, "$GPRMC,%f,A,%f,%c,%f,%c,%f,,%d", &GPS.utc_time, &GPS.nmea_latitude, &ns, &GPS.nmea_longitude, &ew, &speed_k, &GPS.date) >= 1){
+		if(sscanf(GPSstrParse, "$GPRMC,%f,A,%f,%c,%f,%c,%f,,%lu", &GPS.utc_time, &GPS.nmea_latitude, &ns, &GPS.nmea_longitude, &ew, &speed_k, &GPS.date) >= 1){
 			printf("measured values:\n"
 								"\t%0.5f %c latitude\n"
 								"\t%0.5f %c longitude\n"
 								"\t%0.2f time\n"
-								"\t%d date\n",
+								"\t%.2lu date\n",
 								GPS.nmea_latitude, ns, GPS.nmea_longitude, ew, GPS.utc_time, GPS.date
 						);
 			return 1;

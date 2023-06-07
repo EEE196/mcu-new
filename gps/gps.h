@@ -20,7 +20,7 @@ typedef struct __attribute__((packed)) {
     float nmea_latitude;
     float utc_time;
     // RMC - Recommended Minimmum Specific GNS Data
-    uint16_t date;
+    uint32_t date;
 } GPS_t;
 
 #if (GPS_DEBUG == 1)

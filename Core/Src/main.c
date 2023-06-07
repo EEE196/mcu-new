@@ -147,9 +147,10 @@ int main(void)
 	HAL_SuspendTick();
 	HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
 	HAL_ResumeTick();
-	int length = snprintf(NULL, 0, "%d-%f.bin",collatedData.GPS_Data.date, collatedData.GPS_Data.utc_time);
+	int length = snprintf(NULL, 0, "%.6lu-%0.0f.bin",collatedData.GPS_Data.date, collatedData.GPS_Data.utc_time);
 	char comb_str[length+1];
-	sprintf(comb_str, "%d-%f.bin",collatedData.GPS_Data.date, collatedData.GPS_Data.utc_time);
+	sprintf(comb_str, "%.6lu-%0.0f.bin",collatedData.GPS_Data.date, collatedData.GPS_Data.utc_time);
+    printf("value of filename: %.*s\n", (int)sizeof(comb_str), comb_str);
 	init_gps();
 	while (1)
 	{
