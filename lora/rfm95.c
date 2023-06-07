@@ -170,7 +170,7 @@ bool rfm95_init(rfm95_handle_t *handle)
 	if (!rfm95_write(handle, RFM95_REGISTER_OP_MODE, RFM95_REGISTER_OP_MODE_LORA)) return false;
 
 	// Set module power to 17dbm.
-	if (!rfm95_set_power(handle, 17)) return false;
+	if (!rfm95_set_power(handle, 20)) return false;
 
 	// RX timeout set to 37 symbols.
 	if (!rfm95_write(handle, RFM95_REGISTER_SYMB_TIMEOUT_LSB, 37)) return false;
@@ -242,8 +242,8 @@ static bool rfm95_send_package(rfm95_handle_t *handle, uint8_t *data, size_t len
 	if (!rfm95_write(handle, RFM95_REGISTER_FR_MID, eu863_lora_frequency[channel][1])) return false;
 	if (!rfm95_write(handle, RFM95_REGISTER_FR_LSB, eu863_lora_frequency[channel][2])) return false;
 
-	if (!rfm95_write(handle, RFM95_REGISTER_MODEM_CONFIG_1, 0x72)) return false;
-	if (!rfm95_write(handle, RFM95_REGISTER_MODEM_CONFIG_2, 0x74)) return false;
+	if (!rfm95_write(handle, RFM95_REGISTER_MODEM_CONFIG_1, 0x74)) return false;
+	if (!rfm95_write(handle, RFM95_REGISTER_MODEM_CONFIG_2, 0xA4)) return false;
 	if (!rfm95_write(handle, RFM95_REGISTER_MODEM_CONFIG_3, 0x04)) return false;
 
 	if (!rfm95_write(handle, RFM95_REGISTER_PAYLOAD_LENGTH, length)) return false;

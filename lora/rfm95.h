@@ -38,7 +38,7 @@
 #endif
 
 #ifndef RFM95_SEND_TIMEOUT
-#define RFM95_SEND_TIMEOUT 1000
+#define RFM95_SEND_TIMEOUT 2000
 #endif
 
 typedef bool (*rfm95_reload_frame_counter_t)(uint16_t *tx_counter, uint16_t *rx_counter);
