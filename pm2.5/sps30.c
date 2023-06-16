@@ -122,7 +122,7 @@ int16_t sps30_read_data_ready(uint16_t* data_ready) {
                                   data_ready, SENSIRION_NUM_WORDS(*data_ready));
 }
 
-int16_t sps30_read_measurement(struct sps30_measurement* measurement) {
+int16_t sps30_read_measurement(struct sps30_measurement_SD* measurement) {
     int16_t error;
     uint8_t data[10][4];
 
@@ -138,11 +138,16 @@ int16_t sps30_read_measurement(struct sps30_measurement* measurement) {
     if (error != NO_ERROR) {
         return error;
     }
-
+    measurement->mc_1p0 = sensirion_bytes_to_float(data[0]);
     measurement->mc_2p5 = sensirion_bytes_to_float(data[1]);
+    measurement->mc_4p0 = sensirion_bytes_to_float(data[2]);
     measurement->mc_10p0 = sensirion_bytes_to_float(data[3]);
+    measurement->nc_0p5 = sensirion_bytes_to_float(data[4]);
+    measurement->nc_1p0 = sensirion_bytes_to_float(data[5]);
     measurement->nc_2p5 = sensirion_bytes_to_float(data[6]);
+    measurement->nc_4p0 = sensirion_bytes_to_float(data[7]);
     measurement->nc_10p0 = sensirion_bytes_to_float(data[8]);
+    measurement->typical_particle_size = sensirion_bytes_to_float(data[9]);
 
     return 0;
 }

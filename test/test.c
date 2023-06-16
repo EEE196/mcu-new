@@ -153,7 +153,7 @@ void test_sd( void )
 }
 
 void test_pm(void) {
-	struct sps30_measurement m;
+	struct sps30_measurement_SD m;
 	int16_t ret;
 
 	/* Initialize I2C bus */

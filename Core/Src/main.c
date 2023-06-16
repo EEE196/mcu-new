@@ -56,9 +56,20 @@ typedef struct DATA
 	CO_t CO_Data;
 	GPS_t GPS_Data;
 } CollatedData;
+typedef struct DATA_SD
+{
+	struct sps30_measurement_SD PM_Data;
+	CO_t CO_Data;
+	GPS_t GPS_Data;
+} CollatedDataSD;
+
 CollatedData collatedData;
+CollatedDataSD collatedDataSD;
 void* vptr_test = &collatedData;
 uint8_t buffer[sizeof(collatedData)];
+
+void* vptr_test_SD = &collatedDataSD;
+uint8_t bufferSD[sizeof(collatedDataSD)];
 FRESULT     fres;                 //Result after operations
 uint16_t data_ready = 0;
 uint16_t ret;
@@ -137,7 +148,7 @@ int main(void)
 
 
 	init_lora();
-
+	printf("%d\n", sizeof(collatedDataSD));
 	printf("sleeping\n");
 	HAL_SuspendTick();
 	HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
@@ -181,9 +192,12 @@ int main(void)
 
 		vrefint_cal= *((uint16_t*)VREFINT_CAL_ADDR); // read VREFINT_CAL_ADDR memory location
 		vref = 3.3*vrefint_cal/HAL_ADC_GetValue(&hadc1);
+
 		//printf("%f \n", vref);
 
 		collatedData.PM_Data.SO_ppm = so_convert(vgas, vgas0, vtemp, vref);
+		collatedDataSD.PM_Data.SO_ppm = collatedData.PM_Data.SO_ppm;
+
 		printf("SO2 SENSOR COLLECTION:\n\t%d ppm SO2\n", collatedData.PM_Data.SO_ppm);
 		//collect CO
 		data_ready = 0;
@@ -193,25 +207,39 @@ int main(void)
 					scd30_read_measurement(&collatedData.CO_Data.co2_ppm, &collatedData.CO_Data.temperature, &collatedData.CO_Data.relative_humidity);
 		if (err == NO_ERROR) {
 			printf("CO2 SENSOR COLLECTION:\n\t%f ppm CO2\n\t%f °C\n\t%f %%RH\n", collatedData.CO_Data.co2_ppm, collatedData.CO_Data.temperature, collatedData.CO_Data.relative_humidity);
+			collatedDataSD.CO_Data.co2_ppm = collatedData.CO_Data.co2_ppm;
+			collatedDataSD.CO_Data.temperature = collatedData.CO_Data.temperature;
+			collatedDataSD.CO_Data.relative_humidity = collatedData.CO_Data.relative_humidity;
 		} else {
 			printf("co data collect failed\n");
 		}
 		//collect PM
-		ret = sps30_read_measurement(&collatedData.PM_Data);
+		ret = sps30_read_measurement(&collatedDataSD.PM_Data);
 		if (ret < 0) {
 			printf("pm data collect failed\n");
 		} else {
 			printf("PM SENSOR COLLECTION:\n"
-					"\t%f pm2.5\n"
-					"\t%f pm10.0\n"
-					"\t%f nc2.5\n"
-					"\t%f nc10.0\n",
-					collatedData.PM_Data.mc_2p5, collatedData.PM_Data.mc_10p0,
-					collatedData.PM_Data.nc_2p5, collatedData.PM_Data.nc_10p0);
+			    "\t%0.2f pm1.0\n"
+			    "\t%0.2f pm2.5\n"
+			    "\t%0.2f pm4.0\n"
+			    "\t%0.2f pm10.0\n"
+			    "\t%0.2f nc0.5\n"
+			    "\t%0.2f nc1.0\n"
+			    "\t%0.2f nc2.5\n"
+			    "\t%0.2f nc4.5\n"
+			    "\t%0.2f nc10.0\n"
+			    "\t%0.2f typical particle size\n\n",
+			    collatedDataSD.PM_Data.mc_1p0, collatedDataSD.PM_Data.mc_2p5, collatedDataSD.PM_Data.mc_4p0, collatedDataSD.PM_Data.mc_10p0, collatedDataSD.PM_Data.nc_0p5, collatedDataSD.PM_Data.nc_1p0,
+			    collatedDataSD.PM_Data.nc_2p5, collatedDataSD.PM_Data.nc_4p0, collatedDataSD.PM_Data.nc_10p0, collatedDataSD.PM_Data.typical_particle_size);
+			collatedData.PM_Data.mc_2p5 = collatedDataSD.PM_Data.mc_2p5;
+			collatedData.PM_Data.mc_10p0 = collatedDataSD.PM_Data.mc_10p0;
+			collatedData.PM_Data.nc_2p5 = collatedDataSD.PM_Data.nc_2p5;
+			collatedData.PM_Data.nc_10p0 = collatedDataSD.PM_Data.nc_10p0;
 		}
 
 		//squash structs
 		memcpy(buffer, vptr_test, sizeof(collatedData));
+		memcpy(bufferSD, vptr_test_SD, sizeof(collatedDataSD));
 		//send to lora
 		if (!rfm95_send_data(&rfm95_handle, buffer, sizeof(buffer))) {
 			printf("lora send failed\n\r");
@@ -224,10 +252,13 @@ int main(void)
 		if(fres != FR_OK)
 		{
 			printf("File creation/open Error : (%i)\r\n", fres);
+			f_close(&file);
 		} else {
-			f_write(&file, buffer, sizeof(buffer), NULL);
+			unsigned int bytesWritten = 0;
+			f_write(&file, bufferSD, sizeof(bufferSD), &bytesWritten);
 			f_close(&file);
 			printf("SD WRITE SUCCESSFUL\n");
+			printf("%d bytes written\n", bytesWritten);
 		}
 		//reset timer, 2seconds
 		TIM11->CNT = 0;
@@ -323,6 +354,7 @@ void GPS_UART_CallBack(){
 		{
 			if (GPS_parse((char*) rx_buffer)) {
 				collatedData.GPS_Data = GPS;
+				collatedDataSD.GPS_Data = GPS;
 				HAL_PWR_DisableSleepOnExit ();
 			} else {
 				HAL_UART_Receive_IT(GPS_USART, &rx_data, 1);

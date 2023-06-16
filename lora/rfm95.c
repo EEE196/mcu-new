@@ -267,8 +267,6 @@ static bool rfm95_send_package(rfm95_handle_t *handle, uint8_t *data, size_t len
 		}
 	}
 
-	if (!rfm95_write(handle, RFM95_REGISTER_OP_MODE, RFM95_REGISTER_OP_MODE_SLEEP)) return false;
-
 	return true;
 }
 
