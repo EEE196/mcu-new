@@ -16,8 +16,9 @@ typedef struct __attribute__((packed)) {
 
 
     // GGA - Global Positioning System Fixed Data
-    float nmea_longitude;
-    float nmea_latitude;
+    float dec_longitude;
+    float dec_latitude;
+    float altitude;
     float utc_time;
     // RMC - Recommended Minimmum Specific GNS Data
     uint32_t date;

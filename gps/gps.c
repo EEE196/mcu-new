@@ -36,7 +36,9 @@ uint8_t rx_index = 0;
 
 GPS_t GPS;
 float speed_k;
-char ns,ew;
+char ns,ew, units;
+int lock, satelites;
+float nmea_latitude, nmea_longitude, hdop;
 #if (GPS_DEBUG == 1)
 void GPS_print(char *data){
 	for(int i=0; i<GPSBUFSIZE; i++) {
@@ -90,22 +92,23 @@ int GPS_validate(char *nmeastr){
 
 int GPS_parse(char *GPSstrParse){
 
-	if (!strncmp(GPSstrParse, "$GPRMC", 6)){
+	if(!strncmp(GPSstrParse, "$GPGGA", 6)){
 		printf(GPSstrParse);
 		printf("\n");
-		if(sscanf(GPSstrParse, "$GPRMC,%f,A,%f,%c,%f,%c,%f,,%lu", &GPS.utc_time, &GPS.nmea_latitude, &ns, &GPS.nmea_longitude, &ew, &speed_k, &GPS.date) >= 1){
-			printf("measured values:\n"
-								"\t%0.5f %c latitude\n"
-								"\t%0.5f %c longitude\n"
-								"\t%0.2f time\n"
-								"\t%.2lu date\n",
-								GPS.nmea_latitude, ns, GPS.nmea_longitude, ew, GPS.utc_time, GPS.date
-						);
-			return 1;
-
-		}
-		return 1;
-	}
+	    	if (sscanf(GPSstrParse, "$GPGGA,%f,%f,%c,%f,%c,%d,%d,%f,%f,%c", &GPS.utc_time, &nmea_latitude, &ns, &nmea_longitude, &ew, &lock, &satelites, &hdop, &GPS.altitude, &units) >= 1){
+	    		GPS.dec_latitude = GPS_nmea_to_dec(nmea_latitude, ns);
+	    		GPS.dec_longitude = GPS_nmea_to_dec(nmea_longitude, ew);
+	    		printf("measured values:\n"
+									"\t%0.5f latitude\n"
+									"\t%0.5f longitude\n"
+									"\t%0.5f feet altitude\n"
+									"\t%0.2f time\n"
+									"\t%.2lu date\n",
+									GPS.dec_latitude, ns, GPS.dec_longitude, ew, GPS.altitude, GPS.utc_time, GPS.date
+				);
+	    		return 1;
+	    	}
+	    }
 	else {
 		return 0;
 	}

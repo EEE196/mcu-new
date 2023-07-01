@@ -69,9 +69,7 @@ struct sps30_measurement_SD {
 
 struct sps30_measurement {
     float mc_2p5;
-    float mc_10p0;
     float nc_2p5;
-    float nc_10p0;
     uint16_t SO_ppm;
 };
 

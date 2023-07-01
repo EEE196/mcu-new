@@ -232,9 +232,7 @@ int main(void)
 			    collatedDataSD.PM_Data.mc_1p0, collatedDataSD.PM_Data.mc_2p5, collatedDataSD.PM_Data.mc_4p0, collatedDataSD.PM_Data.mc_10p0, collatedDataSD.PM_Data.nc_0p5, collatedDataSD.PM_Data.nc_1p0,
 			    collatedDataSD.PM_Data.nc_2p5, collatedDataSD.PM_Data.nc_4p0, collatedDataSD.PM_Data.nc_10p0, collatedDataSD.PM_Data.typical_particle_size);
 			collatedData.PM_Data.mc_2p5 = collatedDataSD.PM_Data.mc_2p5;
-			collatedData.PM_Data.mc_10p0 = collatedDataSD.PM_Data.mc_10p0;
 			collatedData.PM_Data.nc_2p5 = collatedDataSD.PM_Data.nc_2p5;
-			collatedData.PM_Data.nc_10p0 = collatedDataSD.PM_Data.nc_10p0;
 		}
 
 		//squash structs
