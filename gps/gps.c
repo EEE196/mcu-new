@@ -108,7 +108,8 @@ int GPS_parse(char *GPSstrParse){
 				);
 	    		return 1;
 	    	}
-	    }
+	    return 1;
+	}
 	else {
 		return 0;
 	}
